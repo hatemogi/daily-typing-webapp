@@ -8,6 +8,7 @@ import Json.Decode as Json
 import Http
 import Json.Decode as Decode
 import Random
+import Time
 
 
 main : Program () Model Msg
@@ -28,6 +29,8 @@ type alias Model =
     , isComplete : Bool
     , mistakes : Int
     , correctedPositions : List Int
+    , startTime : Maybe Time.Posix
+    , currentTime : Time.Posix
     }
 
 
@@ -46,6 +49,7 @@ type Msg
     | KeyPressed String
     | StartOver
     | GotRandomIndex Int
+    | Tick Time.Posix
 
 
 init : () -> ( Model, Cmd Msg )
@@ -57,6 +61,8 @@ init _ =
       , isComplete = False
       , mistakes = 0
       , correctedPositions = []
+      , startTime = Nothing
+      , currentTime = Time.millisToPosix 0
       }
     , loadMeditations
     )
@@ -154,6 +160,16 @@ update msg model =
 
                         isComplete =
                             newPosition >= String.length meditation.text
+
+                        newStartTime =
+                            case model.startTime of
+                                Nothing ->
+                                    if isCorrect then
+                                        Just model.currentTime
+                                    else
+                                        Nothing
+                                Just time ->
+                                    Just time
                     in
                     ( { model
                         | userInput = newUserInput
@@ -161,6 +177,7 @@ update msg model =
                         , mistakes = newMistakes
                         , isComplete = isComplete
                         , correctedPositions = newCorrectedPositions
+                        , startTime = newStartTime
                       }
                     , Cmd.none
                     )
@@ -172,14 +189,36 @@ update msg model =
                 , isComplete = False
                 , mistakes = 0
                 , correctedPositions = []
+                , startTime = Nothing
               }
             , Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1))
             )
 
+        Tick time ->
+            ( { model | currentTime = time }, Cmd.none )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    Time.every 100 Tick
+
+
+calculateWPM : Model -> String -> Int
+calculateWPM model targetText =
+    case model.startTime of
+        Nothing ->
+            0
+        Just startTime ->
+            let
+                elapsedTime = Time.posixToMillis model.currentTime - Time.posixToMillis startTime
+                elapsedMinutes = toFloat elapsedTime / 60000
+                typedChars = model.currentPosition
+                wordsTyped = toFloat typedChars / 5
+            in
+            if elapsedMinutes > 0 then
+                round (wordsTyped / elapsedMinutes)
+            else
+                0
 
 
 view : Model -> Html Msg
@@ -210,6 +249,8 @@ view model =
                             [ text ("진행률: " ++ String.fromInt (round ((toFloat model.currentPosition / toFloat (String.length meditation.text)) * 100)) ++ "%") ]
                         , div [ class "mistakes" ]
                             [ text ("실수: " ++ String.fromInt model.mistakes ++ "회") ]
+                        , div [ class "wpm" ]
+                            [ text ("속도: " ++ String.fromInt (calculateWPM model meditation.text) ++ " WPM") ]
                         ]
                     , if model.isComplete then
                         div [ class "completion" ]
