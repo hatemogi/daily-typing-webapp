@@ -33,6 +33,7 @@ type alias Model =
     , correctedPositions : List Int
     , startTime : Maybe Time.Posix
     , currentTime : Time.Posix
+    , endTime : Maybe Time.Posix
     }
 
 
@@ -66,6 +67,7 @@ init _ =
       , correctedPositions = []
       , startTime = Nothing
       , currentTime = Time.millisToPosix 0
+      , endTime = Nothing
       }
     , loadMeditations
     )
@@ -178,6 +180,12 @@ update msg model =
                                         Nothing
                                 Just time ->
                                     Just time
+
+                        newEndTime =
+                            if isComplete then
+                                Just model.currentTime
+                            else
+                                model.endTime
                     in
                     ( { model
                         | userInput = newUserInput
@@ -186,6 +194,7 @@ update msg model =
                         , isComplete = isComplete
                         , correctedPositions = newCorrectedPositions
                         , startTime = newStartTime
+                        , endTime = newEndTime
                       }
                     , Cmd.none
                     )
@@ -198,6 +207,7 @@ update msg model =
                 , mistakes = 0
                 , correctedPositions = []
                 , startTime = Nothing
+                , endTime = Nothing
               }
             , Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1))
             )
@@ -230,7 +240,12 @@ calculateWPM model targetText =
             0
         Just startTime ->
             let
-                elapsedTime = Time.posixToMillis model.currentTime - Time.posixToMillis startTime
+                endTime = 
+                    case model.endTime of
+                        Just time -> time
+                        Nothing -> model.currentTime
+                        
+                elapsedTime = Time.posixToMillis endTime - Time.posixToMillis startTime
                 elapsedMinutes = toFloat elapsedTime / 60000
                 typedChars = model.currentPosition
                 wordsTyped = toFloat typedChars / 5

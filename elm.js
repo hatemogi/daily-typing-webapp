@@ -6240,6 +6240,7 @@ var $author$project$Main$init = function (_v0) {
 			currentMeditation: $elm$core$Maybe$Nothing,
 			currentPosition: 0,
 			currentTime: $elm$time$Time$millisToPosix(0),
+			endTime: $elm$core$Maybe$Nothing,
 			isComplete: false,
 			meditations: _List_Nil,
 			mistakes: 0,
@@ -6833,17 +6834,18 @@ var $author$project$Main$update = F2(
 					var isComplete = _Utils_cmp(
 						newPosition,
 						$elm$core$String$length(meditation.text)) > -1;
+					var newEndTime = isComplete ? $elm$core$Maybe$Just(model.currentTime) : model.endTime;
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
-							{correctedPositions: newCorrectedPositions, currentPosition: newPosition, isComplete: isComplete, mistakes: newMistakes, startTime: newStartTime, userInput: newUserInput}),
+							{correctedPositions: newCorrectedPositions, currentPosition: newPosition, endTime: newEndTime, isComplete: isComplete, mistakes: newMistakes, startTime: newStartTime, userInput: newUserInput}),
 						$elm$core$Platform$Cmd$none);
 				}
 			case 'StartOver':
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{correctedPositions: _List_Nil, currentPosition: 0, isComplete: false, mistakes: 0, startTime: $elm$core$Maybe$Nothing, userInput: ''}),
+						{correctedPositions: _List_Nil, currentPosition: 0, endTime: $elm$core$Maybe$Nothing, isComplete: false, mistakes: 0, startTime: $elm$core$Maybe$Nothing, userInput: ''}),
 					A2(
 						$elm$random$Random$generate,
 						$author$project$Main$GotRandomIndex,
@@ -6881,7 +6883,16 @@ var $author$project$Main$calculateWPM = F2(
 			var startTime = _v0.a;
 			var typedChars = model.currentPosition;
 			var wordsTyped = typedChars / 5;
-			var elapsedTime = $elm$time$Time$posixToMillis(model.currentTime) - $elm$time$Time$posixToMillis(startTime);
+			var endTime = function () {
+				var _v1 = model.endTime;
+				if (_v1.$ === 'Just') {
+					var time = _v1.a;
+					return time;
+				} else {
+					return model.currentTime;
+				}
+			}();
+			var elapsedTime = $elm$time$Time$posixToMillis(endTime) - $elm$time$Time$posixToMillis(startTime);
 			var elapsedMinutes = elapsedTime / 60000;
 			return (elapsedMinutes > 0) ? $elm$core$Basics$round(wordsTyped / elapsedMinutes) : 0;
 		}
