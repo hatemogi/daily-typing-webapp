@@ -9,6 +9,8 @@ import Http
 import Json.Decode as Decode
 import Random
 import Time
+import Task
+import Browser.Dom as Dom
 
 
 main : Program () Model Msg
@@ -50,6 +52,7 @@ type Msg
     | StartOver
     | GotRandomIndex Int
     | Tick Time.Posix
+    | FocusTypingArea
 
 
 init : () -> ( Model, Cmd Msg )
@@ -111,7 +114,12 @@ update msg model =
                 selectedMeditation =
                     List.drop index model.meditations |> List.head
             in
-            ( { model | currentMeditation = selectedMeditation }, Cmd.none )
+            ( { model | currentMeditation = selectedMeditation }
+            , Task.attempt (\_ -> FocusTypingArea) (Dom.focus "typing-area")
+            )
+
+        FocusTypingArea ->
+            ( model, Cmd.none )
 
         SelectRandomMeditation _ ->
             ( model
@@ -129,7 +137,7 @@ update msg model =
                             String.slice model.currentPosition (model.currentPosition + 1) meditation.text
 
                         isCorrect =
-                            key == targetChar
+                            String.toLower key == String.toLower targetChar
 
                         wasIncorrect =
                             List.member model.currentPosition model.correctedPositions
@@ -203,6 +211,18 @@ subscriptions model =
     Time.every 100 Tick
 
 
+calculateAccuracy : Model -> String -> Int
+calculateAccuracy model targetText =
+    let
+        totalChars = model.currentPosition
+        correctChars = totalChars - List.length model.correctedPositions
+    in
+    if totalChars > 0 then
+        round ((toFloat correctChars / toFloat totalChars) * 100)
+    else
+        100
+
+
 calculateWPM : Model -> String -> Int
 calculateWPM model targetText =
     case model.startTime of
@@ -240,6 +260,7 @@ view model =
                         [ div 
                             [ class "target-text"
                             , tabindex 0
+                            , id "typing-area"
                             , on "keydown" (Json.map KeyPressed (Json.field "key" Json.string))
                             ]
                             [ viewTypingText meditation.text model.currentPosition model.correctedPositions ]
@@ -249,13 +270,17 @@ view model =
                             [ text ("진행률: " ++ String.fromInt (round ((toFloat model.currentPosition / toFloat (String.length meditation.text)) * 100)) ++ "%") ]
                         , div [ class "mistakes" ]
                             [ text ("실수: " ++ String.fromInt model.mistakes ++ "회") ]
-                        , div [ class "wpm" ]
-                            [ text ("속도: " ++ String.fromInt (calculateWPM model meditation.text) ++ " WPM") ]
                         ]
                     , if model.isComplete then
                         div [ class "completion" ]
                             [ h3 [] [ text "완료!" ]
                             , p [] [ text "명상록 한 구절을 완성했습니다." ]
+                            , div [ class "final-stats" ]
+                                [ div [ class "final-wpm" ]
+                                    [ text ("타자 속도: " ++ String.fromInt (calculateWPM model meditation.text) ++ " WPM") ]
+                                , div [ class "final-accuracy" ]
+                                    [ text ("정확도: " ++ String.fromInt (calculateAccuracy model meditation.text) ++ "%") ]
+                                ]
                             , button [ onClick StartOver, class "btn-primary" ] [ text "새로운 구절로 시작" ]
                             ]
 

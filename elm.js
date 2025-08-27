@@ -6520,9 +6520,29 @@ var $elm$time$Time$every = F2(
 var $author$project$Main$subscriptions = function (model) {
 	return A2($elm$time$Time$every, 100, $author$project$Main$Tick);
 };
+var $author$project$Main$FocusTypingArea = {$: 'FocusTypingArea'};
 var $author$project$Main$GotRandomIndex = function (a) {
 	return {$: 'GotRandomIndex', a: a};
 };
+var $elm$core$Task$onError = _Scheduler_onError;
+var $elm$core$Task$attempt = F2(
+	function (resultToMessage, task) {
+		return $elm$core$Task$command(
+			$elm$core$Task$Perform(
+				A2(
+					$elm$core$Task$onError,
+					A2(
+						$elm$core$Basics$composeL,
+						A2($elm$core$Basics$composeL, $elm$core$Task$succeed, resultToMessage),
+						$elm$core$Result$Err),
+					A2(
+						$elm$core$Task$andThen,
+						A2(
+							$elm$core$Basics$composeL,
+							A2($elm$core$Basics$composeL, $elm$core$Task$succeed, resultToMessage),
+							$elm$core$Result$Ok),
+						task))));
+	});
 var $elm$core$List$drop = F2(
 	function (n, list) {
 		drop:
@@ -6555,6 +6575,7 @@ var $elm$core$List$filter = F2(
 			_List_Nil,
 			list);
 	});
+var $elm$browser$Browser$Dom$focus = _Browser_call('focus');
 var $elm$core$Basics$ge = _Utils_ge;
 var $elm$random$Random$Generate = function (a) {
 	return {$: 'Generate', a: a};
@@ -6731,6 +6752,7 @@ var $elm$core$List$member = F2(
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $elm$core$Basics$not = _Basics_not;
+var $elm$core$String$toLower = _String_toLower;
 var $author$project$Main$update = F2(
 	function (msg, model) {
 		switch (msg.$) {
@@ -6765,7 +6787,14 @@ var $author$project$Main$update = F2(
 					_Utils_update(
 						model,
 						{currentMeditation: selectedMeditation}),
-					$elm$core$Platform$Cmd$none);
+					A2(
+						$elm$core$Task$attempt,
+						function (_v1) {
+							return $author$project$Main$FocusTypingArea;
+						},
+						$elm$browser$Browser$Dom$focus('typing-area')));
+			case 'FocusTypingArea':
+				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 			case 'SelectRandomMeditation':
 				return _Utils_Tuple2(
 					model,
@@ -6778,23 +6807,25 @@ var $author$project$Main$update = F2(
 							$elm$core$List$length(model.meditations) - 1)));
 			case 'KeyPressed':
 				var key = msg.a;
-				var _v1 = model.currentMeditation;
-				if (_v1.$ === 'Nothing') {
+				var _v2 = model.currentMeditation;
+				if (_v2.$ === 'Nothing') {
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				} else {
-					var meditation = _v1.a;
+					var meditation = _v2.a;
 					var wasIncorrect = A2($elm$core$List$member, model.currentPosition, model.correctedPositions);
 					var targetChar = A3($elm$core$String$slice, model.currentPosition, model.currentPosition + 1, meditation.text);
-					var isCorrect = _Utils_eq(key, targetChar);
+					var isCorrect = _Utils_eq(
+						$elm$core$String$toLower(key),
+						$elm$core$String$toLower(targetChar));
 					var newCorrectedPositions = ((!isCorrect) && (!wasIncorrect)) ? A2($elm$core$List$cons, model.currentPosition, model.correctedPositions) : model.correctedPositions;
 					var newMistakes = (!isCorrect) ? (model.mistakes + 1) : model.mistakes;
 					var newPosition = isCorrect ? (model.currentPosition + 1) : model.currentPosition;
 					var newStartTime = function () {
-						var _v2 = model.startTime;
-						if (_v2.$ === 'Nothing') {
+						var _v3 = model.startTime;
+						if (_v3.$ === 'Nothing') {
 							return isCorrect ? $elm$core$Maybe$Just(model.currentTime) : $elm$core$Maybe$Nothing;
 						} else {
-							var time = _v2.a;
+							var time = _v3.a;
 							return $elm$core$Maybe$Just(time);
 						}
 					}();
@@ -6835,6 +6866,12 @@ var $author$project$Main$KeyPressed = function (a) {
 var $author$project$Main$StartOver = {$: 'StartOver'};
 var $elm$html$Html$button = _VirtualDom_node('button');
 var $elm$core$Basics$round = _Basics_round;
+var $author$project$Main$calculateAccuracy = F2(
+	function (model, targetText) {
+		var totalChars = model.currentPosition;
+		var correctChars = totalChars - $elm$core$List$length(model.correctedPositions);
+		return (totalChars > 0) ? $elm$core$Basics$round((correctChars / totalChars) * 100) : 100;
+	});
 var $author$project$Main$calculateWPM = F2(
 	function (model, targetText) {
 		var _v0 = model.startTime;
@@ -6862,6 +6899,7 @@ var $elm$html$Html$div = _VirtualDom_node('div');
 var $elm$html$Html$h1 = _VirtualDom_node('h1');
 var $elm$html$Html$h2 = _VirtualDom_node('h2');
 var $elm$html$Html$h3 = _VirtualDom_node('h3');
+var $elm$html$Html$Attributes$id = $elm$html$Html$Attributes$stringProperty('id');
 var $elm$virtual_dom$VirtualDom$Normal = function (a) {
 	return {$: 'Normal', a: a};
 };
@@ -7023,6 +7061,7 @@ var $author$project$Main$view = function (model) {
 											[
 												$elm$html$Html$Attributes$class('target-text'),
 												$elm$html$Html$Attributes$tabindex(0),
+												$elm$html$Html$Attributes$id('typing-area'),
 												A2(
 												$elm$html$Html$Events$on,
 												'keydown',
@@ -7067,18 +7106,6 @@ var $author$project$Main$view = function (model) {
 											[
 												$elm$html$Html$text(
 												'실수: ' + ($elm$core$String$fromInt(model.mistakes) + '회'))
-											])),
-										A2(
-										$elm$html$Html$div,
-										_List_fromArray(
-											[
-												$elm$html$Html$Attributes$class('wpm')
-											]),
-										_List_fromArray(
-											[
-												$elm$html$Html$text(
-												'속도: ' + ($elm$core$String$fromInt(
-													A2($author$project$Main$calculateWPM, model, meditation.text)) + ' WPM'))
 											]))
 									])),
 								model.isComplete ? A2(
@@ -7102,6 +7129,39 @@ var $author$project$Main$view = function (model) {
 										_List_fromArray(
 											[
 												$elm$html$Html$text('명상록 한 구절을 완성했습니다.')
+											])),
+										A2(
+										$elm$html$Html$div,
+										_List_fromArray(
+											[
+												$elm$html$Html$Attributes$class('final-stats')
+											]),
+										_List_fromArray(
+											[
+												A2(
+												$elm$html$Html$div,
+												_List_fromArray(
+													[
+														$elm$html$Html$Attributes$class('final-wpm')
+													]),
+												_List_fromArray(
+													[
+														$elm$html$Html$text(
+														'타자 속도: ' + ($elm$core$String$fromInt(
+															A2($author$project$Main$calculateWPM, model, meditation.text)) + ' WPM'))
+													])),
+												A2(
+												$elm$html$Html$div,
+												_List_fromArray(
+													[
+														$elm$html$Html$Attributes$class('final-accuracy')
+													]),
+												_List_fromArray(
+													[
+														$elm$html$Html$text(
+														'정확도: ' + ($elm$core$String$fromInt(
+															A2($author$project$Main$calculateAccuracy, model, meditation.text)) + '%'))
+													]))
 											])),
 										A2(
 										$elm$html$Html$button,
