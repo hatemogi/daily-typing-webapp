@@ -6813,33 +6813,51 @@ var $author$project$Main$update = F2(
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				} else {
 					var meditation = _v2.a;
-					var wasIncorrect = A2($elm$core$List$member, model.currentPosition, model.correctedPositions);
-					var targetChar = A3($elm$core$String$slice, model.currentPosition, model.currentPosition + 1, meditation.text);
-					var isCorrect = _Utils_eq(
-						$elm$core$String$toLower(key),
-						$elm$core$String$toLower(targetChar));
-					var newCorrectedPositions = ((!isCorrect) && (!wasIncorrect)) ? A2($elm$core$List$cons, model.currentPosition, model.correctedPositions) : model.correctedPositions;
-					var newMistakes = (!isCorrect) ? (model.mistakes + 1) : model.mistakes;
-					var newPosition = isCorrect ? (model.currentPosition + 1) : model.currentPosition;
-					var newStartTime = function () {
-						var _v3 = model.startTime;
-						if (_v3.$ === 'Nothing') {
-							return isCorrect ? $elm$core$Maybe$Just(model.currentTime) : $elm$core$Maybe$Nothing;
+					if (model.isComplete && (key === 'Enter')) {
+						return _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{correctedPositions: _List_Nil, currentPosition: 0, endTime: $elm$core$Maybe$Nothing, isComplete: false, mistakes: 0, startTime: $elm$core$Maybe$Nothing, userInput: ''}),
+							A2(
+								$elm$random$Random$generate,
+								$author$project$Main$GotRandomIndex,
+								A2(
+									$elm$random$Random$int,
+									0,
+									$elm$core$List$length(model.meditations) - 1)));
+					} else {
+						if (model.isComplete) {
+							return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 						} else {
-							var time = _v3.a;
-							return $elm$core$Maybe$Just(time);
+							var wasIncorrect = A2($elm$core$List$member, model.currentPosition, model.correctedPositions);
+							var targetChar = A3($elm$core$String$slice, model.currentPosition, model.currentPosition + 1, meditation.text);
+							var isCorrect = _Utils_eq(
+								$elm$core$String$toLower(key),
+								$elm$core$String$toLower(targetChar));
+							var newCorrectedPositions = ((!isCorrect) && (!wasIncorrect)) ? A2($elm$core$List$cons, model.currentPosition, model.correctedPositions) : model.correctedPositions;
+							var newMistakes = (!isCorrect) ? (model.mistakes + 1) : model.mistakes;
+							var newPosition = isCorrect ? (model.currentPosition + 1) : model.currentPosition;
+							var newStartTime = function () {
+								var _v3 = model.startTime;
+								if (_v3.$ === 'Nothing') {
+									return isCorrect ? $elm$core$Maybe$Just(model.currentTime) : $elm$core$Maybe$Nothing;
+								} else {
+									var time = _v3.a;
+									return $elm$core$Maybe$Just(time);
+								}
+							}();
+							var newUserInput = isCorrect ? _Utils_ap(model.userInput, key) : model.userInput;
+							var isComplete = _Utils_cmp(
+								newPosition,
+								$elm$core$String$length(meditation.text)) > -1;
+							var newEndTime = isComplete ? $elm$core$Maybe$Just(model.currentTime) : model.endTime;
+							return _Utils_Tuple2(
+								_Utils_update(
+									model,
+									{correctedPositions: newCorrectedPositions, currentPosition: newPosition, endTime: newEndTime, isComplete: isComplete, mistakes: newMistakes, startTime: newStartTime, userInput: newUserInput}),
+								$elm$core$Platform$Cmd$none);
 						}
-					}();
-					var newUserInput = isCorrect ? _Utils_ap(model.userInput, key) : model.userInput;
-					var isComplete = _Utils_cmp(
-						newPosition,
-						$elm$core$String$length(meditation.text)) > -1;
-					var newEndTime = isComplete ? $elm$core$Maybe$Just(model.currentTime) : model.endTime;
-					return _Utils_Tuple2(
-						_Utils_update(
-							model,
-							{correctedPositions: newCorrectedPositions, currentPosition: newPosition, endTime: newEndTime, isComplete: isComplete, mistakes: newMistakes, startTime: newStartTime, userInput: newUserInput}),
-						$elm$core$Platform$Cmd$none);
+					}
 				}
 			case 'StartOver':
 				return _Utils_Tuple2(
@@ -7140,6 +7158,16 @@ var $author$project$Main$view = function (model) {
 										_List_fromArray(
 											[
 												$elm$html$Html$text('명상록 한 구절을 완성했습니다.')
+											])),
+										A2(
+										$elm$html$Html$p,
+										_List_fromArray(
+											[
+												$elm$html$Html$Attributes$class('enter-hint')
+											]),
+										_List_fromArray(
+											[
+												$elm$html$Html$text('Enter 키를 눌러 다음 구절로 이동하세요')
 											])),
 										A2(
 										$elm$html$Html$div,

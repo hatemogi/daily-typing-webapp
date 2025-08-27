@@ -134,70 +134,87 @@ update msg model =
                     ( model, Cmd.none )
 
                 Just meditation ->
-                    let
-                        targetChar =
-                            String.slice model.currentPosition (model.currentPosition + 1) meditation.text
+                    if model.isComplete && key == "Enter" then
+                        -- Start next text when Enter is pressed after completion
+                        ( { model
+                            | userInput = ""
+                            , currentPosition = 0
+                            , isComplete = False
+                            , mistakes = 0
+                            , correctedPositions = []
+                            , startTime = Nothing
+                            , endTime = Nothing
+                          }
+                        , Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1))
+                        )
+                    else if model.isComplete then
+                        -- Ignore other keys when completed
+                        ( model, Cmd.none )
+                    else
+                        let
+                            targetChar =
+                                String.slice model.currentPosition (model.currentPosition + 1) meditation.text
 
-                        isCorrect =
-                            String.toLower key == String.toLower targetChar
+                            isCorrect =
+                                String.toLower key == String.toLower targetChar
 
-                        wasIncorrect =
-                            List.member model.currentPosition model.correctedPositions
+                            wasIncorrect =
+                                List.member model.currentPosition model.correctedPositions
 
-                        newCorrectedPositions =
-                            if not isCorrect && not wasIncorrect then
-                                model.currentPosition :: model.correctedPositions
-                            else
-                                model.correctedPositions
+                            newCorrectedPositions =
+                                if not isCorrect && not wasIncorrect then
+                                    model.currentPosition :: model.correctedPositions
+                                else
+                                    model.correctedPositions
 
-                        newUserInput =
-                            if isCorrect then
-                                model.userInput ++ key
-                            else
-                                model.userInput
+                            newUserInput =
+                                if isCorrect then
+                                    model.userInput ++ key
+                                else
+                                    model.userInput
 
-                        newPosition =
-                            if isCorrect then
-                                model.currentPosition + 1
-                            else
-                                model.currentPosition
+                            newPosition =
+                                if isCorrect then
+                                    model.currentPosition + 1
+                                else
+                                    model.currentPosition
 
-                        newMistakes =
-                            if not isCorrect then
-                                model.mistakes + 1
-                            else
-                                model.mistakes
+                            newMistakes =
+                                if not isCorrect then
+                                    model.mistakes + 1
+                                else
+                                    model.mistakes
 
-                        isComplete =
-                            newPosition >= String.length meditation.text
+                            isComplete =
+                                newPosition >= String.length meditation.text
 
-                        newStartTime =
-                            case model.startTime of
-                                Nothing ->
-                                    if isCorrect then
-                                        Just model.currentTime
-                                    else
-                                        Nothing
-                                Just time ->
-                                    Just time
+                            newStartTime =
+                                case model.startTime of
+                                    Nothing ->
+                                        if isCorrect then
+                                            Just model.currentTime
+                                        else
+                                            Nothing
+                                    Just time ->
+                                        Just time
 
-                        newEndTime =
-                            if isComplete then
-                                Just model.currentTime
-                            else
-                                model.endTime
-                    in
-                    ( { model
-                        | userInput = newUserInput
-                        , currentPosition = newPosition
-                        , mistakes = newMistakes
-                        , isComplete = isComplete
-                        , correctedPositions = newCorrectedPositions
-                        , startTime = newStartTime
-                        , endTime = newEndTime
-                      }
-                    , Cmd.none
-                    )
+                            newEndTime =
+                                if isComplete then
+                                    Just model.currentTime
+                                else
+                                    model.endTime
+                        in
+                        ( { model
+                            | userInput = newUserInput
+                            , currentPosition = newPosition
+                            , mistakes = newMistakes
+                            , isComplete = isComplete
+                            , correctedPositions = newCorrectedPositions
+                            , startTime = newStartTime
+                            , endTime = newEndTime
+                          }
+                        , Cmd.none
+                        )
 
         StartOver ->
             ( { model
@@ -290,6 +307,7 @@ view model =
                         div [ class "completion" ]
                             [ h3 [] [ text "완료!" ]
                             , p [] [ text "명상록 한 구절을 완성했습니다." ]
+                            , p [ class "enter-hint" ] [ text "Enter 키를 눌러 다음 구절로 이동하세요" ]
                             , div [ class "final-stats" ]
                                 [ div [ class "final-wpm" ]
                                     [ text ("타자 속도: " ++ String.fromInt (calculateWPM model meditation.text) ++ " WPM") ]
