@@ -150,6 +150,9 @@ update msg model =
                     else if model.isComplete then
                         -- Ignore other keys when completed
                         ( model, Cmd.none )
+                    else if isModifierKey key then
+                        -- Ignore modifier keys
+                        ( model, Cmd.none )
                     else
                         let
                             targetChar =
@@ -236,6 +239,17 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Time.every 100 Tick
+
+
+isModifierKey : String -> Bool
+isModifierKey key =
+    List.member key
+        [ "Shift", "Control", "Alt", "Meta", "CapsLock", "Tab"
+        , "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"
+        , "Home", "End", "PageUp", "PageDown"
+        , "Insert", "Delete", "Escape", "F1", "F2", "F3", "F4", "F5"
+        , "F6", "F7", "F8", "F9", "F10", "F11", "F12"
+        ]
 
 
 calculateAccuracy : Model -> String -> Int
