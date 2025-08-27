@@ -17,12 +17,12 @@
 ## 🚀 사용법
 
 ### 온라인으로 사용
-[GitHub Pages에서 바로 사용하기](https://YOUR_USERNAME.github.io/daily-typing-webapp/)
+[GitHub Pages에서 바로 사용하기](https://hatemogi.github.io/daily-typing-webapp/)
 
 ### 로컬에서 실행
 ```bash
 # 저장소 클론
-git clone https://github.com/YOUR_USERNAME/daily-typing-webapp.git
+git clone https://github.com/hatemogi/daily-typing-webapp.git
 cd daily-typing-webapp
 
 # 개발 서버 시작
