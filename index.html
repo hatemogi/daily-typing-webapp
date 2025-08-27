@@ -86,25 +86,32 @@
             padding: 20px;
             margin-bottom: 20px;
             min-height: 200px;
-            font-size: 1.1em;
-            line-height: 1.8;
+            font-size: 1.3em;
+            line-height: 2;
+            outline: none;
+            cursor: text;
+        }
+
+        .target-text:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
         }
 
         .text-display {
             font-family: 'Georgia', serif;
         }
 
-        .typed-correct {
-            background: #d1ecf1;
-            color: #0c5460;
+        .char-correct {
+            background: #d4edda;
+            color: #155724;
         }
 
-        .typed-incorrect {
-            background: #f8d7da;
-            color: #721c24;
+        .char-corrected {
+            background: #fff3cd;
+            color: #856404;
         }
 
-        .current-char {
+        .char-current {
             background: #007bff;
             color: white;
             animation: blink 1s infinite;
@@ -115,32 +122,10 @@
             51%, 100% { opacity: 0.3; }
         }
 
-        .remaining {
+        .char-remaining {
             color: #6c757d;
         }
 
-        .input-area {
-            width: 100%;
-            min-height: 120px;
-            padding: 15px;
-            font-size: 1.1em;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            resize: vertical;
-            font-family: inherit;
-            line-height: 1.5;
-        }
-
-        .input-area:focus {
-            outline: none;
-            border-color: #007bff;
-            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
-        }
-
-        .input-area:disabled {
-            background: #f8f9fa;
-            cursor: not-allowed;
-        }
 
         .stats {
             display: flex;

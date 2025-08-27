@@ -4,6 +4,7 @@ import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Json.Decode as Json
 import Http
 import Json.Decode as Decode
 import Random
@@ -26,6 +27,7 @@ type alias Model =
     , currentPosition : Int
     , isComplete : Bool
     , mistakes : Int
+    , correctedPositions : List Int
     }
 
 
@@ -41,7 +43,7 @@ type alias Meditation =
 type Msg
     = LoadMeditations (Result Http.Error (List Meditation))
     | SelectRandomMeditation Int
-    | UpdateInput String
+    | KeyPressed String
     | StartOver
     | GotRandomIndex Int
 
@@ -54,6 +56,7 @@ init _ =
       , currentPosition = 0
       , isComplete = False
       , mistakes = 0
+      , correctedPositions = []
       }
     , loadMeditations
     )
@@ -109,34 +112,55 @@ update msg model =
             , Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1))
             )
 
-        UpdateInput input ->
+        KeyPressed key ->
             case model.currentMeditation of
                 Nothing ->
                     ( model, Cmd.none )
 
                 Just meditation ->
                     let
-                        targetText =
-                            String.slice 0 (String.length input) meditation.text
+                        targetChar =
+                            String.slice model.currentPosition (model.currentPosition + 1) meditation.text
 
-                        newMistakes =
-                            if input == targetText then
-                                model.mistakes
+                        isCorrect =
+                            key == targetChar
 
+                        wasIncorrect =
+                            List.member model.currentPosition model.correctedPositions
+
+                        newCorrectedPositions =
+                            if not isCorrect && not wasIncorrect then
+                                model.currentPosition :: model.correctedPositions
                             else
-                                model.mistakes + 1
+                                model.correctedPositions
+
+                        newUserInput =
+                            if isCorrect then
+                                model.userInput ++ key
+                            else
+                                model.userInput
 
                         newPosition =
-                            String.length input
+                            if isCorrect then
+                                model.currentPosition + 1
+                            else
+                                model.currentPosition
+
+                        newMistakes =
+                            if not isCorrect then
+                                model.mistakes + 1
+                            else
+                                model.mistakes
 
                         isComplete =
-                            input == meditation.text
+                            newPosition >= String.length meditation.text
                     in
                     ( { model
-                        | userInput = input
+                        | userInput = newUserInput
                         , currentPosition = newPosition
                         , mistakes = newMistakes
                         , isComplete = isComplete
+                        , correctedPositions = newCorrectedPositions
                       }
                     , Cmd.none
                     )
@@ -147,6 +171,7 @@ update msg model =
                 , currentPosition = 0
                 , isComplete = False
                 , mistakes = 0
+                , correctedPositions = []
               }
             , Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1))
             )
@@ -173,16 +198,12 @@ view model =
                         , p [ class "source" ] [ text meditation.source ]
                         ]
                     , div [ class "typing-area" ]
-                        [ div [ class "target-text" ]
-                            [ viewTargetText meditation.text model.userInput model.currentPosition ]
-                        , textarea
-                            [ class "input-area"
-                            , placeholder "여기에 타이핑하세요..."
-                            , value model.userInput
-                            , onInput UpdateInput
-                            , disabled model.isComplete
+                        [ div 
+                            [ class "target-text"
+                            , tabindex 0
+                            , on "keydown" (Json.map KeyPressed (Json.field "key" Json.string))
                             ]
-                            []
+                            [ viewTypingText meditation.text model.currentPosition model.correctedPositions ]
                         ]
                     , div [ class "stats" ]
                         [ div [ class "progress" ]
@@ -204,30 +225,27 @@ view model =
         ]
 
 
-viewTargetText : String -> String -> Int -> Html Msg
-viewTargetText targetText userInput currentPosition =
+viewTypingText : String -> Int -> List Int -> Html Msg
+viewTypingText targetText currentPosition correctedPositions =
     let
-        typed =
-            String.slice 0 currentPosition targetText
+        chars =
+            String.toList targetText
+                |> List.indexedMap (\index char -> ( index, String.fromChar char ))
 
-        current =
-            String.slice currentPosition (currentPosition + 1) targetText
-
-        remaining =
-            String.slice (currentPosition + 1) (String.length targetText) targetText
-
-        typedCorrect =
-            String.slice 0 (String.length userInput) targetText == userInput
-
-        typedClass =
-            if typedCorrect then
-                "typed-correct"
-
-            else
-                "typed-incorrect"
+        renderChar ( index, char ) =
+            let
+                charClass =
+                    if index < currentPosition then
+                        if List.member index correctedPositions then
+                            "char-corrected"
+                        else
+                            "char-correct"
+                    else if index == currentPosition then
+                        "char-current"
+                    else
+                        "char-remaining"
+            in
+            span [ class charClass ] [ text char ]
     in
     div [ class "text-display" ]
-        [ span [ class typedClass ] [ text typed ]
-        , span [ class "current-char" ] [ text current ]
-        , span [ class "remaining" ] [ text remaining ]
-        ]
+        (List.map renderChar chars)

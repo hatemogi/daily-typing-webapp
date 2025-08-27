@@ -6231,7 +6231,7 @@ var $author$project$Main$loadMeditations = $elm$http$Http$get(
 	});
 var $author$project$Main$init = function (_v0) {
 	return _Utils_Tuple2(
-		{currentMeditation: $elm$core$Maybe$Nothing, currentPosition: 0, isComplete: false, meditations: _List_Nil, mistakes: 0, userInput: ''},
+		{correctedPositions: _List_Nil, currentMeditation: $elm$core$Maybe$Nothing, currentPosition: 0, isComplete: false, meditations: _List_Nil, mistakes: 0, userInput: ''},
 		$author$project$Main$loadMeditations);
 };
 var $elm$core$Platform$Sub$batch = _Platform_batch;
@@ -6274,6 +6274,7 @@ var $elm$core$List$filter = F2(
 			_List_Nil,
 			list);
 	});
+var $elm$core$Basics$ge = _Utils_ge;
 var $elm$random$Random$Generate = function (a) {
 	return {$: 'Generate', a: a};
 };
@@ -6432,8 +6433,39 @@ var $elm$random$Random$int = F2(
 				}
 			});
 	});
+var $elm$core$List$any = F2(
+	function (isOkay, list) {
+		any:
+		while (true) {
+			if (!list.b) {
+				return false;
+			} else {
+				var x = list.a;
+				var xs = list.b;
+				if (isOkay(x)) {
+					return true;
+				} else {
+					var $temp$isOkay = isOkay,
+						$temp$list = xs;
+					isOkay = $temp$isOkay;
+					list = $temp$list;
+					continue any;
+				}
+			}
+		}
+	});
+var $elm$core$List$member = F2(
+	function (x, xs) {
+		return A2(
+			$elm$core$List$any,
+			function (a) {
+				return _Utils_eq(a, x);
+			},
+			xs);
+	});
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
+var $elm$core$Basics$not = _Basics_not;
 var $author$project$Main$update = F2(
 	function (msg, model) {
 		switch (msg.$) {
@@ -6479,32 +6511,34 @@ var $author$project$Main$update = F2(
 							$elm$random$Random$int,
 							0,
 							$elm$core$List$length(model.meditations) - 1)));
-			case 'UpdateInput':
-				var input = msg.a;
+			case 'KeyPressed':
+				var key = msg.a;
 				var _v1 = model.currentMeditation;
 				if (_v1.$ === 'Nothing') {
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				} else {
 					var meditation = _v1.a;
-					var targetText = A3(
-						$elm$core$String$slice,
-						0,
-						$elm$core$String$length(input),
-						meditation.text);
-					var newPosition = $elm$core$String$length(input);
-					var newMistakes = _Utils_eq(input, targetText) ? model.mistakes : (model.mistakes + 1);
-					var isComplete = _Utils_eq(input, meditation.text);
+					var wasIncorrect = A2($elm$core$List$member, model.currentPosition, model.correctedPositions);
+					var targetChar = A3($elm$core$String$slice, model.currentPosition, model.currentPosition + 1, meditation.text);
+					var isCorrect = _Utils_eq(key, targetChar);
+					var newCorrectedPositions = ((!isCorrect) && (!wasIncorrect)) ? A2($elm$core$List$cons, model.currentPosition, model.correctedPositions) : model.correctedPositions;
+					var newMistakes = (!isCorrect) ? (model.mistakes + 1) : model.mistakes;
+					var newPosition = isCorrect ? (model.currentPosition + 1) : model.currentPosition;
+					var newUserInput = isCorrect ? _Utils_ap(model.userInput, key) : model.userInput;
+					var isComplete = _Utils_cmp(
+						newPosition,
+						$elm$core$String$length(meditation.text)) > -1;
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
-							{currentPosition: newPosition, isComplete: isComplete, mistakes: newMistakes, userInput: input}),
+							{correctedPositions: newCorrectedPositions, currentPosition: newPosition, isComplete: isComplete, mistakes: newMistakes, userInput: newUserInput}),
 						$elm$core$Platform$Cmd$none);
 				}
 			default:
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{currentPosition: 0, isComplete: false, mistakes: 0, userInput: ''}),
+						{correctedPositions: _List_Nil, currentPosition: 0, isComplete: false, mistakes: 0, userInput: ''}),
 					A2(
 						$elm$random$Random$generate,
 						$author$project$Main$GotRandomIndex,
@@ -6514,10 +6548,10 @@ var $author$project$Main$update = F2(
 							$elm$core$List$length(model.meditations) - 1)));
 		}
 	});
-var $author$project$Main$StartOver = {$: 'StartOver'};
-var $author$project$Main$UpdateInput = function (a) {
-	return {$: 'UpdateInput', a: a};
+var $author$project$Main$KeyPressed = function (a) {
+	return {$: 'KeyPressed', a: a};
 };
+var $author$project$Main$StartOver = {$: 'StartOver'};
 var $elm$html$Html$button = _VirtualDom_node('button');
 var $elm$json$Json$Encode$string = _Json_wrap;
 var $elm$html$Html$Attributes$stringProperty = F2(
@@ -6528,15 +6562,6 @@ var $elm$html$Html$Attributes$stringProperty = F2(
 			$elm$json$Json$Encode$string(string));
 	});
 var $elm$html$Html$Attributes$class = $elm$html$Html$Attributes$stringProperty('className');
-var $elm$json$Json$Encode$bool = _Json_wrap;
-var $elm$html$Html$Attributes$boolProperty = F2(
-	function (key, bool) {
-		return A2(
-			_VirtualDom_property,
-			key,
-			$elm$json$Json$Encode$bool(bool));
-	});
-var $elm$html$Html$Attributes$disabled = $elm$html$Html$Attributes$boolProperty('disabled');
 var $elm$html$Html$div = _VirtualDom_node('div');
 var $elm$html$Html$h1 = _VirtualDom_node('h1');
 var $elm$html$Html$h2 = _VirtualDom_node('h2');
@@ -6558,101 +6583,58 @@ var $elm$html$Html$Events$onClick = function (msg) {
 		'click',
 		$elm$json$Json$Decode$succeed(msg));
 };
-var $elm$html$Html$Events$alwaysStop = function (x) {
-	return _Utils_Tuple2(x, true);
-};
-var $elm$virtual_dom$VirtualDom$MayStopPropagation = function (a) {
-	return {$: 'MayStopPropagation', a: a};
-};
-var $elm$html$Html$Events$stopPropagationOn = F2(
-	function (event, decoder) {
-		return A2(
-			$elm$virtual_dom$VirtualDom$on,
-			event,
-			$elm$virtual_dom$VirtualDom$MayStopPropagation(decoder));
-	});
-var $elm$json$Json$Decode$at = F2(
-	function (fields, decoder) {
-		return A3($elm$core$List$foldr, $elm$json$Json$Decode$field, decoder, fields);
-	});
-var $elm$html$Html$Events$targetValue = A2(
-	$elm$json$Json$Decode$at,
-	_List_fromArray(
-		['target', 'value']),
-	$elm$json$Json$Decode$string);
-var $elm$html$Html$Events$onInput = function (tagger) {
-	return A2(
-		$elm$html$Html$Events$stopPropagationOn,
-		'input',
-		A2(
-			$elm$json$Json$Decode$map,
-			$elm$html$Html$Events$alwaysStop,
-			A2($elm$json$Json$Decode$map, tagger, $elm$html$Html$Events$targetValue)));
-};
 var $elm$html$Html$p = _VirtualDom_node('p');
-var $elm$html$Html$Attributes$placeholder = $elm$html$Html$Attributes$stringProperty('placeholder');
 var $elm$core$Basics$round = _Basics_round;
+var $elm$html$Html$Attributes$tabindex = function (n) {
+	return A2(
+		_VirtualDom_attribute,
+		'tabIndex',
+		$elm$core$String$fromInt(n));
+};
 var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
-var $elm$html$Html$textarea = _VirtualDom_node('textarea');
-var $elm$html$Html$Attributes$value = $elm$html$Html$Attributes$stringProperty('value');
+var $elm$core$String$cons = _String_cons;
+var $elm$core$String$fromChar = function (_char) {
+	return A2($elm$core$String$cons, _char, '');
+};
 var $elm$html$Html$span = _VirtualDom_node('span');
-var $author$project$Main$viewTargetText = F3(
-	function (targetText, userInput, currentPosition) {
-		var typedCorrect = _Utils_eq(
-			A3(
-				$elm$core$String$slice,
-				0,
-				$elm$core$String$length(userInput),
-				targetText),
-			userInput);
-		var typedClass = typedCorrect ? 'typed-correct' : 'typed-incorrect';
-		var typed = A3($elm$core$String$slice, 0, currentPosition, targetText);
-		var remaining = A3(
-			$elm$core$String$slice,
-			currentPosition + 1,
-			$elm$core$String$length(targetText),
-			targetText);
-		var current = A3($elm$core$String$slice, currentPosition, currentPosition + 1, targetText);
+var $elm$core$String$foldr = _String_foldr;
+var $elm$core$String$toList = function (string) {
+	return A3($elm$core$String$foldr, $elm$core$List$cons, _List_Nil, string);
+};
+var $author$project$Main$viewTypingText = F3(
+	function (targetText, currentPosition, correctedPositions) {
+		var renderChar = function (_v0) {
+			var index = _v0.a;
+			var _char = _v0.b;
+			var charClass = (_Utils_cmp(index, currentPosition) < 0) ? (A2($elm$core$List$member, index, correctedPositions) ? 'char-corrected' : 'char-correct') : (_Utils_eq(index, currentPosition) ? 'char-current' : 'char-remaining');
+			return A2(
+				$elm$html$Html$span,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class(charClass)
+					]),
+				_List_fromArray(
+					[
+						$elm$html$Html$text(_char)
+					]));
+		};
+		var chars = A2(
+			$elm$core$List$indexedMap,
+			F2(
+				function (index, _char) {
+					return _Utils_Tuple2(
+						index,
+						$elm$core$String$fromChar(_char));
+				}),
+			$elm$core$String$toList(targetText));
 		return A2(
 			$elm$html$Html$div,
 			_List_fromArray(
 				[
 					$elm$html$Html$Attributes$class('text-display')
 				]),
-			_List_fromArray(
-				[
-					A2(
-					$elm$html$Html$span,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$class(typedClass)
-						]),
-					_List_fromArray(
-						[
-							$elm$html$Html$text(typed)
-						])),
-					A2(
-					$elm$html$Html$span,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$class('current-char')
-						]),
-					_List_fromArray(
-						[
-							$elm$html$Html$text(current)
-						])),
-					A2(
-					$elm$html$Html$span,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$class('remaining')
-						]),
-					_List_fromArray(
-						[
-							$elm$html$Html$text(remaining)
-						]))
-				]));
+			A2($elm$core$List$map, renderChar, chars));
 	});
 var $author$project$Main$view = function (model) {
 	return A2(
@@ -6744,23 +6726,20 @@ var $author$project$Main$view = function (model) {
 										$elm$html$Html$div,
 										_List_fromArray(
 											[
-												$elm$html$Html$Attributes$class('target-text')
+												$elm$html$Html$Attributes$class('target-text'),
+												$elm$html$Html$Attributes$tabindex(0),
+												A2(
+												$elm$html$Html$Events$on,
+												'keydown',
+												A2(
+													$elm$json$Json$Decode$map,
+													$author$project$Main$KeyPressed,
+													A2($elm$json$Json$Decode$field, 'key', $elm$json$Json$Decode$string)))
 											]),
 										_List_fromArray(
 											[
-												A3($author$project$Main$viewTargetText, meditation.text, model.userInput, model.currentPosition)
-											])),
-										A2(
-										$elm$html$Html$textarea,
-										_List_fromArray(
-											[
-												$elm$html$Html$Attributes$class('input-area'),
-												$elm$html$Html$Attributes$placeholder('여기에 타이핑하세요...'),
-												$elm$html$Html$Attributes$value(model.userInput),
-												$elm$html$Html$Events$onInput($author$project$Main$UpdateInput),
-												$elm$html$Html$Attributes$disabled(model.isComplete)
-											]),
-										_List_Nil)
+												A3($author$project$Main$viewTypingText, meditation.text, model.currentPosition, model.correctedPositions)
+											]))
 									])),
 								A2(
 								$elm$html$Html$div,
