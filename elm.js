@@ -6263,6 +6263,17 @@ var $elm$core$List$drop = F2(
 			}
 		}
 	});
+var $elm$core$List$filter = F2(
+	function (isGood, list) {
+		return A3(
+			$elm$core$List$foldr,
+			F2(
+				function (x, xs) {
+					return isGood(x) ? A2($elm$core$List$cons, x, xs) : xs;
+				}),
+			_List_Nil,
+			list);
+	});
 var $elm$random$Random$Generate = function (a) {
 	return {$: 'Generate', a: a};
 };
@@ -6429,17 +6440,23 @@ var $author$project$Main$update = F2(
 			case 'LoadMeditations':
 				if (msg.a.$ === 'Ok') {
 					var meditations = msg.a.a;
+					var filteredMeditations = A2(
+						$elm$core$List$filter,
+						function (m) {
+							return $elm$core$String$length(m.text) <= 300;
+						},
+						meditations);
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
-							{meditations: meditations}),
+							{meditations: filteredMeditations}),
 						A2(
 							$elm$random$Random$generate,
 							$author$project$Main$GotRandomIndex,
 							A2(
 								$elm$random$Random$int,
 								0,
-								$elm$core$List$length(meditations) - 1)));
+								$elm$core$List$length(filteredMeditations) - 1)));
 				} else {
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				}

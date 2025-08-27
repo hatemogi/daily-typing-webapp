@@ -86,8 +86,12 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         LoadMeditations (Ok meditations) ->
-            ( { model | meditations = meditations }
-            , Random.generate GotRandomIndex (Random.int 0 (List.length meditations - 1))
+            let
+                filteredMeditations =
+                    List.filter (\m -> String.length m.text <= 300) meditations
+            in
+            ( { model | meditations = filteredMeditations }
+            , Random.generate GotRandomIndex (Random.int 0 (List.length filteredMeditations - 1))
             )
 
         LoadMeditations (Err _) ->
