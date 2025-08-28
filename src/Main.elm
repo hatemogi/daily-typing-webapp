@@ -470,11 +470,11 @@ viewTypingPractice model meditation =
                 [ viewTypingText meditation.text model.currentPosition model.correctedPositions ]
             ]
         , div [ class "stats" ]
-            [ div [ class "mistakes" ]
-                [ text ("실수: " ++ String.fromInt model.mistakes ++ "/3회")
+            [ div [ class "lives" ]
+                [ div [ class "lives-display" ] (viewLives (3 - model.mistakes))
                 , if model.mistakes >= 3 then
-                    div [ class "mistake-warning" ]
-                        [ text "⚠️ 실수 한계 도달! 다음 오타 시 처음부터 다시 시작됩니다." ]
+                    div [ class "lives-warning" ]
+                        [ text "⚠️ 생명이 모두 소진되었습니다! 다음 오타 시 처음부터 다시 시작됩니다." ]
                   else
                     text ""
                 ]
@@ -496,6 +496,17 @@ viewTypingPractice model meditation =
             div [ class "controls" ]
                 [ button [ onClick StartOver, class "btn-secondary" ] [ text "다시 시작" ] ]
         ]
+
+
+viewLives : Int -> List (Html Msg)
+viewLives remainingLives =
+    List.range 1 3
+        |> List.map (\index ->
+            if index <= remainingLives then
+                span [ class "life-heart full" ] [ text "❤️" ]
+            else
+                span [ class "life-heart empty" ] [ text "🤍" ]
+           )
 
 
 viewTypingText : String -> Int -> List Int -> Html Msg

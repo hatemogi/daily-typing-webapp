@@ -6772,7 +6772,7 @@ var $author$project$Main$isModifierKey = function (key) {
 		$elm$core$List$member,
 		key,
 		_List_fromArray(
-			['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown', 'Insert', 'Delete', 'Escape', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12', 'Backspace']));
+			['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown', 'Insert', 'Delete', 'Escape', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12']));
 };
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
@@ -6850,38 +6850,42 @@ var $author$project$Main$update = F2(
 							if ($author$project$Main$isModifierKey(key)) {
 								return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 							} else {
-								var wasIncorrect = A2($elm$core$List$member, model.currentPosition, model.correctedPositions);
-								var targetChar = A3($elm$core$String$slice, model.currentPosition, model.currentPosition + 1, meditation.text);
-								var isCorrect = _Utils_eq(
-									$elm$core$String$toLower(key),
-									$elm$core$String$toLower(targetChar));
-								var newCorrectedPositions = ((!isCorrect) && (!wasIncorrect)) ? A2($elm$core$List$cons, model.currentPosition, model.correctedPositions) : model.correctedPositions;
-								var newMistakes = (!isCorrect) ? (model.mistakes + 1) : model.mistakes;
-								var mistakeLimitExceeded = newMistakes > 3;
-								var newPosition = isCorrect ? (model.currentPosition + 1) : model.currentPosition;
-								var newStartTime = function () {
-									var _v3 = model.startTime;
-									if (_v3.$ === 'Nothing') {
-										return isCorrect ? $elm$core$Maybe$Just(model.currentTime) : $elm$core$Maybe$Nothing;
-									} else {
-										var time = _v3.a;
-										return $elm$core$Maybe$Just(time);
-									}
-								}();
-								var newUserInput = isCorrect ? _Utils_ap(model.userInput, key) : model.userInput;
-								var isComplete = _Utils_cmp(
-									newPosition,
-									$elm$core$String$length(meditation.text)) > -1;
-								var newEndTime = isComplete ? $elm$core$Maybe$Just(model.currentTime) : model.endTime;
-								return mistakeLimitExceeded ? _Utils_Tuple2(
-									_Utils_update(
-										model,
-										{correctedPositions: _List_Nil, currentPosition: 0, endTime: $elm$core$Maybe$Nothing, mistakes: 0, startTime: $elm$core$Maybe$Nothing, userInput: ''}),
-									$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
-									_Utils_update(
-										model,
-										{correctedPositions: newCorrectedPositions, currentPosition: newPosition, endTime: newEndTime, isComplete: isComplete, mistakes: newMistakes, startTime: newStartTime, userInput: newUserInput}),
-									$elm$core$Platform$Cmd$none);
+								if (key === 'Backspace') {
+									return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+								} else {
+									var wasIncorrect = A2($elm$core$List$member, model.currentPosition, model.correctedPositions);
+									var targetChar = A3($elm$core$String$slice, model.currentPosition, model.currentPosition + 1, meditation.text);
+									var isCorrect = _Utils_eq(
+										$elm$core$String$toLower(key),
+										$elm$core$String$toLower(targetChar));
+									var newCorrectedPositions = ((!isCorrect) && (!wasIncorrect)) ? A2($elm$core$List$cons, model.currentPosition, model.correctedPositions) : model.correctedPositions;
+									var newMistakes = (!isCorrect) ? (model.mistakes + 1) : model.mistakes;
+									var mistakeLimitExceeded = newMistakes > 3;
+									var newPosition = isCorrect ? (model.currentPosition + 1) : model.currentPosition;
+									var newStartTime = function () {
+										var _v3 = model.startTime;
+										if (_v3.$ === 'Nothing') {
+											return isCorrect ? $elm$core$Maybe$Just(model.currentTime) : $elm$core$Maybe$Nothing;
+										} else {
+											var time = _v3.a;
+											return $elm$core$Maybe$Just(time);
+										}
+									}();
+									var newUserInput = isCorrect ? _Utils_ap(model.userInput, key) : model.userInput;
+									var isComplete = _Utils_cmp(
+										newPosition,
+										$elm$core$String$length(meditation.text)) > -1;
+									var newEndTime = isComplete ? $elm$core$Maybe$Just(model.currentTime) : model.endTime;
+									return mistakeLimitExceeded ? _Utils_Tuple2(
+										_Utils_update(
+											model,
+											{correctedPositions: _List_Nil, currentPosition: 0, endTime: $elm$core$Maybe$Nothing, mistakes: 0, startTime: $elm$core$Maybe$Nothing, userInput: ''}),
+										$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
+										_Utils_update(
+											model,
+											{correctedPositions: newCorrectedPositions, currentPosition: newPosition, endTime: newEndTime, isComplete: isComplete, mistakes: newMistakes, startTime: newStartTime, userInput: newUserInput}),
+										$elm$core$Platform$Cmd$none);
+								}
 							}
 						}
 					}
@@ -7263,19 +7267,6 @@ var $author$project$Main$viewTypingPractice = F2(
 						]),
 					_List_fromArray(
 						[
-							A2(
-							$elm$html$Html$div,
-							_List_fromArray(
-								[
-									$elm$html$Html$Attributes$class('progress')
-								]),
-							_List_fromArray(
-								[
-									$elm$html$Html$text(
-									'진행률: ' + ($elm$core$String$fromInt(
-										$elm$core$Basics$round(
-											(model.currentPosition / $elm$core$String$length(meditation.text)) * 100)) + '%'))
-								])),
 							A2(
 							$elm$html$Html$div,
 							_List_fromArray(
