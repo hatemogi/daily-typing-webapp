@@ -7152,11 +7152,37 @@ var $elm$html$Html$Attributes$tabindex = function (n) {
 		'tabIndex',
 		$elm$core$String$fromInt(n));
 };
+var $elm$html$Html$span = _VirtualDom_node('span');
+var $author$project$Main$viewLives = function (remainingLives) {
+	return A2(
+		$elm$core$List$map,
+		function (index) {
+			return (_Utils_cmp(index, remainingLives) < 1) ? A2(
+				$elm$html$Html$span,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('life-heart full')
+					]),
+				_List_fromArray(
+					[
+						$elm$html$Html$text('❤️')
+					])) : A2(
+				$elm$html$Html$span,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('life-heart empty')
+					]),
+				_List_fromArray(
+					[
+						$elm$html$Html$text('🤍')
+					]));
+		},
+		A2($elm$core$List$range, 1, 3));
+};
 var $elm$core$String$cons = _String_cons;
 var $elm$core$String$fromChar = function (_char) {
 	return A2($elm$core$String$cons, _char, '');
 };
-var $elm$html$Html$span = _VirtualDom_node('span');
 var $elm$core$String$foldr = _String_foldr;
 var $elm$core$String$toList = function (string) {
 	return A3($elm$core$String$foldr, $elm$core$List$cons, _List_Nil, string);
@@ -7271,21 +7297,26 @@ var $author$project$Main$viewTypingPractice = F2(
 							$elm$html$Html$div,
 							_List_fromArray(
 								[
-									$elm$html$Html$Attributes$class('mistakes')
+									$elm$html$Html$Attributes$class('lives')
 								]),
 							_List_fromArray(
 								[
-									$elm$html$Html$text(
-									'실수: ' + ($elm$core$String$fromInt(model.mistakes) + '/3회')),
+									A2(
+									$elm$html$Html$div,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$class('lives-display')
+										]),
+									$author$project$Main$viewLives(3 - model.mistakes)),
 									(model.mistakes >= 3) ? A2(
 									$elm$html$Html$div,
 									_List_fromArray(
 										[
-											$elm$html$Html$Attributes$class('mistake-warning')
+											$elm$html$Html$Attributes$class('lives-warning')
 										]),
 									_List_fromArray(
 										[
-											$elm$html$Html$text('⚠️ 실수 한계 도달! 다음 오타 시 처음부터 다시 시작됩니다.')
+											$elm$html$Html$text('⚠️ 생명이 모두 소진되었습니다! 다음 오타 시 처음부터 다시 시작됩니다.')
 										])) : $elm$html$Html$text('')
 								]))
 						])),

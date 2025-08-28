@@ -187,11 +187,14 @@ update msg model =
                             isCorrect =
                                 String.toLower key == String.toLower targetChar
 
-                            wasIncorrect =
+                            isFirstCharacter =
+                                model.currentPosition == 0
+
+                            wasIncorrected =
                                 List.member model.currentPosition model.correctedPositions
 
                             newCorrectedPositions =
-                                if not isCorrect && not wasIncorrect then
+                                if not isCorrect && not wasIncorrected && not isFirstCharacter then
                                     model.currentPosition :: model.correctedPositions
                                 else
                                     model.correctedPositions
@@ -209,7 +212,7 @@ update msg model =
                                     model.currentPosition
 
                             newMistakes =
-                                if not isCorrect then
+                                if not isCorrect && not isFirstCharacter then
                                     model.mistakes + 1
                                 else
                                     model.mistakes
