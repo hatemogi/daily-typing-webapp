@@ -190,11 +190,15 @@ update msg model =
                             isFirstCharacter =
                                 model.currentPosition == 0
 
-                            wasIncorrected =
+                            wasAlreadyIncorrect =
                                 List.member model.currentPosition model.correctedPositions
 
+                            -- Only count as new mistake if it's the first error at this position
+                            isNewMistake =
+                                not isCorrect && not wasAlreadyIncorrect && not isFirstCharacter
+
                             newCorrectedPositions =
-                                if not isCorrect && not wasIncorrected && not isFirstCharacter then
+                                if isNewMistake then
                                     model.currentPosition :: model.correctedPositions
                                 else
                                     model.correctedPositions
@@ -212,7 +216,7 @@ update msg model =
                                     model.currentPosition
 
                             newMistakes =
-                                if not isCorrect && not isFirstCharacter then
+                                if isNewMistake then
                                     model.mistakes + 1
                                 else
                                     model.mistakes

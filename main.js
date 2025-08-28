@@ -6853,14 +6853,15 @@ var $author$project$Main$update = F2(
 								if (key === 'Backspace') {
 									return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 								} else {
-									var wasIncorrected = A2($elm$core$List$member, model.currentPosition, model.correctedPositions);
+									var wasAlreadyIncorrect = A2($elm$core$List$member, model.currentPosition, model.correctedPositions);
 									var targetChar = A3($elm$core$String$slice, model.currentPosition, model.currentPosition + 1, meditation.text);
 									var isFirstCharacter = !model.currentPosition;
 									var isCorrect = _Utils_eq(
 										$elm$core$String$toLower(key),
 										$elm$core$String$toLower(targetChar));
-									var newCorrectedPositions = ((!isCorrect) && ((!wasIncorrected) && (!isFirstCharacter))) ? A2($elm$core$List$cons, model.currentPosition, model.correctedPositions) : model.correctedPositions;
-									var newMistakes = ((!isCorrect) && (!isFirstCharacter)) ? (model.mistakes + 1) : model.mistakes;
+									var isNewMistake = (!isCorrect) && ((!wasAlreadyIncorrect) && (!isFirstCharacter));
+									var newCorrectedPositions = isNewMistake ? A2($elm$core$List$cons, model.currentPosition, model.correctedPositions) : model.correctedPositions;
+									var newMistakes = isNewMistake ? (model.mistakes + 1) : model.mistakes;
 									var mistakeLimitExceeded = newMistakes > 3;
 									var newPosition = isCorrect ? (model.currentPosition + 1) : model.currentPosition;
 									var newStartTime = function () {
