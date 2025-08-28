@@ -176,6 +176,9 @@ update msg model =
                     else if isModifierKey key then
                         -- Ignore modifier keys
                         ( model, Cmd.none )
+                    else if key == "Backspace" then
+                        -- Ignore backspace key completely
+                        ( model, Cmd.none )
                     else
                         let
                             targetChar =

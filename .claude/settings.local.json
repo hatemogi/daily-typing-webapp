@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(elm make:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
