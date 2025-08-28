@@ -6846,6 +6846,7 @@ var $author$project$Main$update = F2(
 									$elm$core$String$toLower(targetChar));
 								var newCorrectedPositions = ((!isCorrect) && (!wasIncorrect)) ? A2($elm$core$List$cons, model.currentPosition, model.correctedPositions) : model.correctedPositions;
 								var newMistakes = (!isCorrect) ? (model.mistakes + 1) : model.mistakes;
+								var mistakeLimitExceeded = newMistakes > 3;
 								var newPosition = isCorrect ? (model.currentPosition + 1) : model.currentPosition;
 								var newStartTime = function () {
 									var _v3 = model.startTime;
@@ -6861,7 +6862,11 @@ var $author$project$Main$update = F2(
 									newPosition,
 									$elm$core$String$length(meditation.text)) > -1;
 								var newEndTime = isComplete ? $elm$core$Maybe$Just(model.currentTime) : model.endTime;
-								return _Utils_Tuple2(
+								return mistakeLimitExceeded ? _Utils_Tuple2(
+									_Utils_update(
+										model,
+										{correctedPositions: _List_Nil, currentPosition: 0, endTime: $elm$core$Maybe$Nothing, mistakes: 0, startTime: $elm$core$Maybe$Nothing, userInput: ''}),
+									$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
 									_Utils_update(
 										model,
 										{correctedPositions: newCorrectedPositions, currentPosition: newPosition, endTime: newEndTime, isComplete: isComplete, mistakes: newMistakes, startTime: newStartTime, userInput: newUserInput}),
@@ -7145,7 +7150,17 @@ var $author$project$Main$view = function (model) {
 										_List_fromArray(
 											[
 												$elm$html$Html$text(
-												'실수: ' + ($elm$core$String$fromInt(model.mistakes) + '회'))
+												'실수: ' + ($elm$core$String$fromInt(model.mistakes) + '/3회')),
+												(model.mistakes >= 3) ? A2(
+												$elm$html$Html$div,
+												_List_fromArray(
+													[
+														$elm$html$Html$Attributes$class('mistake-warning')
+													]),
+												_List_fromArray(
+													[
+														$elm$html$Html$text('⚠️ 실수 한계 도달! 다음 오타 시 처음부터 다시 시작됩니다.')
+													])) : $elm$html$Html$text('')
 											]))
 									])),
 								model.isComplete ? A2(

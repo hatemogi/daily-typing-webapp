@@ -188,6 +188,9 @@ update msg model =
                                 else
                                     model.mistakes
 
+                            mistakeLimitExceeded =
+                                newMistakes > 3
+
                             isComplete =
                                 newPosition >= String.length meditation.text
 
@@ -207,17 +210,30 @@ update msg model =
                                 else
                                     model.endTime
                         in
-                        ( { model
-                            | userInput = newUserInput
-                            , currentPosition = newPosition
-                            , mistakes = newMistakes
-                            , isComplete = isComplete
-                            , correctedPositions = newCorrectedPositions
-                            , startTime = newStartTime
-                            , endTime = newEndTime
-                          }
-                        , Cmd.none
-                        )
+                        if mistakeLimitExceeded then
+                            -- Reset when mistake limit exceeded
+                            ( { model
+                                | userInput = ""
+                                , currentPosition = 0
+                                , mistakes = 0
+                                , correctedPositions = []
+                                , startTime = Nothing
+                                , endTime = Nothing
+                              }
+                            , Cmd.none
+                            )
+                        else
+                            ( { model
+                                | userInput = newUserInput
+                                , currentPosition = newPosition
+                                , mistakes = newMistakes
+                                , isComplete = isComplete
+                                , correctedPositions = newCorrectedPositions
+                                , startTime = newStartTime
+                                , endTime = newEndTime
+                              }
+                            , Cmd.none
+                            )
 
         StartOver ->
             ( { model
@@ -315,7 +331,13 @@ view model =
                         [ div [ class "progress" ]
                             [ text ("진행률: " ++ String.fromInt (round ((toFloat model.currentPosition / toFloat (String.length meditation.text)) * 100)) ++ "%") ]
                         , div [ class "mistakes" ]
-                            [ text ("실수: " ++ String.fromInt model.mistakes ++ "회") ]
+                            [ text ("실수: " ++ String.fromInt model.mistakes ++ "/3회")
+                            , if model.mistakes >= 3 then
+                                div [ class "mistake-warning" ]
+                                    [ text "⚠️ 실수 한계 도달! 다음 오타 시 처음부터 다시 시작됩니다." ]
+                              else
+                                text ""
+                            ]
                         ]
                     , if model.isComplete then
                         div [ class "completion" ]
