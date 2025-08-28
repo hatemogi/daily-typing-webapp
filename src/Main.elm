@@ -470,9 +470,7 @@ viewTypingPractice model meditation =
                 [ viewTypingText meditation.text model.currentPosition model.correctedPositions ]
             ]
         , div [ class "stats" ]
-            [ div [ class "progress" ]
-                [ text ("진행률: " ++ String.fromInt (round ((toFloat model.currentPosition / toFloat (String.length meditation.text)) * 100)) ++ "%") ]
-            , div [ class "mistakes" ]
+            [ div [ class "mistakes" ]
                 [ text ("실수: " ++ String.fromInt model.mistakes ++ "/3회")
                 , if model.mistakes >= 3 then
                     div [ class "mistake-warning" ]
