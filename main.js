@@ -6774,6 +6774,7 @@ var $author$project$Main$isModifierKey = function (key) {
 		_List_fromArray(
 			['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown', 'Insert', 'Delete', 'Escape', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12']));
 };
+var $elm$core$Basics$neq = _Utils_notEqual;
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $elm$core$Basics$not = _Basics_not;
@@ -6853,29 +6854,50 @@ var $author$project$Main$update = F2(
 								if (key === 'Backspace') {
 									return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 								} else {
-									var wasAlreadyIncorrect = A2($elm$core$List$member, model.currentPosition, model.correctedPositions);
 									var targetChar = A3($elm$core$String$slice, model.currentPosition, model.currentPosition + 1, meditation.text);
 									var isFirstCharacter = !model.currentPosition;
 									var isCorrect = _Utils_eq(
 										$elm$core$String$toLower(key),
 										$elm$core$String$toLower(targetChar));
-									var isNewMistake = (!isCorrect) && ((!wasAlreadyIncorrect) && (!isFirstCharacter));
-									var newCorrectedPositions = isNewMistake ? A2($elm$core$List$cons, model.currentPosition, model.correctedPositions) : model.correctedPositions;
-									var newMistakes = isNewMistake ? (model.mistakes + 1) : model.mistakes;
-									var mistakeLimitExceeded = newMistakes > 3;
-									var newPosition = isCorrect ? (model.currentPosition + 1) : model.currentPosition;
+									var result = function () {
+										if ((targetChar === ' ') && (key === ' ')) {
+											return {correctedPositions: model.correctedPositions, mistakes: model.mistakes, position: model.currentPosition + 1, userInput: model.userInput + ' '};
+										} else {
+											if ((targetChar === ' ') && (key !== ' ')) {
+												var wasAlreadyIncorrect = A2($elm$core$List$member, model.currentPosition + 1, model.correctedPositions);
+												var nextTargetChar = A3($elm$core$String$slice, model.currentPosition + 1, model.currentPosition + 2, meditation.text);
+												var nextIsCorrect = _Utils_eq(
+													$elm$core$String$toLower(key),
+													$elm$core$String$toLower(nextTargetChar));
+												var newPosition = nextIsCorrect ? (model.currentPosition + 2) : (model.currentPosition + 1);
+												var newInput = nextIsCorrect ? (model.userInput + (' ' + key)) : (model.userInput + ' ');
+												var isNewMistake = (!nextIsCorrect) && (!wasAlreadyIncorrect);
+												var newCorrectedPositions = isNewMistake ? A2($elm$core$List$cons, model.currentPosition + 1, model.correctedPositions) : model.correctedPositions;
+												var newMistakes = isNewMistake ? (model.mistakes + 1) : model.mistakes;
+												return {correctedPositions: newCorrectedPositions, mistakes: newMistakes, position: newPosition, userInput: newInput};
+											} else {
+												var wasAlreadyIncorrect = A2($elm$core$List$member, model.currentPosition, model.correctedPositions);
+												var newUserInput = isCorrect ? _Utils_ap(model.userInput, key) : model.userInput;
+												var newPosition = isCorrect ? (model.currentPosition + 1) : model.currentPosition;
+												var isNewMistake = (!isCorrect) && ((!wasAlreadyIncorrect) && (!isFirstCharacter));
+												var newCorrectedPositions = isNewMistake ? A2($elm$core$List$cons, model.currentPosition, model.correctedPositions) : model.correctedPositions;
+												var newMistakes = isNewMistake ? (model.mistakes + 1) : model.mistakes;
+												return {correctedPositions: newCorrectedPositions, mistakes: newMistakes, position: newPosition, userInput: newUserInput};
+											}
+										}
+									}();
+									var mistakeLimitExceeded = result.mistakes > 3;
 									var newStartTime = function () {
 										var _v3 = model.startTime;
 										if (_v3.$ === 'Nothing') {
-											return isCorrect ? $elm$core$Maybe$Just(model.currentTime) : $elm$core$Maybe$Nothing;
+											return (_Utils_cmp(result.position, model.currentPosition) > 0) ? $elm$core$Maybe$Just(model.currentTime) : $elm$core$Maybe$Nothing;
 										} else {
 											var time = _v3.a;
 											return $elm$core$Maybe$Just(time);
 										}
 									}();
-									var newUserInput = isCorrect ? _Utils_ap(model.userInput, key) : model.userInput;
 									var isComplete = _Utils_cmp(
-										newPosition,
+										result.position,
 										$elm$core$String$length(meditation.text)) > -1;
 									var newEndTime = isComplete ? $elm$core$Maybe$Just(model.currentTime) : model.endTime;
 									return mistakeLimitExceeded ? _Utils_Tuple2(
@@ -6885,7 +6907,7 @@ var $author$project$Main$update = F2(
 										$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
 										_Utils_update(
 											model,
-											{correctedPositions: newCorrectedPositions, currentPosition: newPosition, endTime: newEndTime, isComplete: isComplete, mistakes: newMistakes, startTime: newStartTime, userInput: newUserInput}),
+											{correctedPositions: result.correctedPositions, currentPosition: result.position, endTime: newEndTime, isComplete: isComplete, mistakes: result.mistakes, startTime: newStartTime, userInput: result.userInput}),
 										$elm$core$Platform$Cmd$none);
 								}
 							}

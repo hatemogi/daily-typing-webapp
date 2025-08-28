@@ -190,47 +190,108 @@ update msg model =
                             isFirstCharacter =
                                 model.currentPosition == 0
 
-                            wasAlreadyIncorrect =
-                                List.member model.currentPosition model.correctedPositions
-
-                            -- Only count as new mistake if it's the first error at this position
-                            isNewMistake =
-                                not isCorrect && not wasAlreadyIncorrect && not isFirstCharacter
-
-                            newCorrectedPositions =
-                                if isNewMistake then
-                                    model.currentPosition :: model.correctedPositions
+                            -- Handle space character logic
+                            result =
+                                if targetChar == " " && key == " " then
+                                    -- Direct space input - treat as correct
+                                    { userInput = model.userInput ++ " "
+                                    , position = model.currentPosition + 1
+                                    , mistakes = model.mistakes
+                                    , correctedPositions = model.correctedPositions
+                                    }
+                                else if targetChar == " " && key /= " " then
+                                    -- Non-space input when space expected - auto-insert space and check next character
+                                    let
+                                        nextTargetChar =
+                                            String.slice (model.currentPosition + 1) (model.currentPosition + 2) meditation.text
+                                        
+                                        nextIsCorrect =
+                                            String.toLower key == String.toLower nextTargetChar
+                                        
+                                        wasAlreadyIncorrect =
+                                            List.member (model.currentPosition + 1) model.correctedPositions
+                                        
+                                        isNewMistake =
+                                            not nextIsCorrect && not wasAlreadyIncorrect
+                                        
+                                        newCorrectedPositions =
+                                            if isNewMistake then
+                                                (model.currentPosition + 1) :: model.correctedPositions
+                                            else
+                                                model.correctedPositions
+                                        
+                                        newMistakes =
+                                            if isNewMistake then
+                                                model.mistakes + 1
+                                            else
+                                                model.mistakes
+                                        
+                                        newPosition =
+                                            if nextIsCorrect then
+                                                model.currentPosition + 2  -- Skip space and advance to next
+                                            else
+                                                model.currentPosition + 1  -- Stay at next character position
+                                        
+                                        newInput =
+                                            if nextIsCorrect then
+                                                model.userInput ++ " " ++ key
+                                            else
+                                                model.userInput ++ " "
+                                    in
+                                    { userInput = newInput
+                                    , position = newPosition
+                                    , mistakes = newMistakes
+                                    , correctedPositions = newCorrectedPositions
+                                    }
                                 else
-                                    model.correctedPositions
+                                    -- Normal character handling
+                                    let
+                                        wasAlreadyIncorrect =
+                                            List.member model.currentPosition model.correctedPositions
 
-                            newUserInput =
-                                if isCorrect then
-                                    model.userInput ++ key
-                                else
-                                    model.userInput
+                                        isNewMistake =
+                                            not isCorrect && not wasAlreadyIncorrect && not isFirstCharacter
 
-                            newPosition =
-                                if isCorrect then
-                                    model.currentPosition + 1
-                                else
-                                    model.currentPosition
+                                        newCorrectedPositions =
+                                            if isNewMistake then
+                                                model.currentPosition :: model.correctedPositions
+                                            else
+                                                model.correctedPositions
 
-                            newMistakes =
-                                if isNewMistake then
-                                    model.mistakes + 1
-                                else
-                                    model.mistakes
+                                        newUserInput =
+                                            if isCorrect then
+                                                model.userInput ++ key
+                                            else
+                                                model.userInput
+
+                                        newPosition =
+                                            if isCorrect then
+                                                model.currentPosition + 1
+                                            else
+                                                model.currentPosition
+
+                                        newMistakes =
+                                            if isNewMistake then
+                                                model.mistakes + 1
+                                            else
+                                                model.mistakes
+                                    in
+                                    { userInput = newUserInput
+                                    , position = newPosition
+                                    , mistakes = newMistakes
+                                    , correctedPositions = newCorrectedPositions
+                                    }
 
                             mistakeLimitExceeded =
-                                newMistakes > 3
+                                result.mistakes > 3
 
                             isComplete =
-                                newPosition >= String.length meditation.text
+                                result.position >= String.length meditation.text
 
                             newStartTime =
                                 case model.startTime of
                                     Nothing ->
-                                        if isCorrect then
+                                        if result.position > model.currentPosition then
                                             Just model.currentTime
                                         else
                                             Nothing
@@ -257,11 +318,11 @@ update msg model =
                             )
                         else
                             ( { model
-                                | userInput = newUserInput
-                                , currentPosition = newPosition
-                                , mistakes = newMistakes
+                                | userInput = result.userInput
+                                , currentPosition = result.position
+                                , mistakes = result.mistakes
                                 , isComplete = isComplete
-                                , correctedPositions = newCorrectedPositions
+                                , correctedPositions = result.correctedPositions
                                 , startTime = newStartTime
                                 , endTime = newEndTime
                               }
