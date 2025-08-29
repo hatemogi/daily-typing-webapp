@@ -523,6 +523,8 @@ calculateSessionTimeLeft model =
                 remaining = Basics.max 0 (durationMillis - elapsed)
             in
             remaining // 1000  -- Convert to seconds
+        (SessionActive, Nothing) ->
+            model.selectedSessionDuration * 60  -- Full time when not started
         _ ->
             model.selectedSessionDuration * 60  -- selected duration in seconds
 
@@ -696,7 +698,11 @@ viewSessionProgressBar model =
             let
                 timeLeft = calculateSessionTimeLeft model
                 totalTime = model.selectedSessionDuration * 60
-                remainingPercentage = (toFloat timeLeft / toFloat totalTime) * 100
+                -- Keep 100% when session hasn't started yet
+                remainingPercentage = 
+                    case model.sessionStartTime of
+                        Nothing -> 100.0
+                        Just _ -> (toFloat timeLeft / toFloat totalTime) * 100
                 
                 progressStyle =
                     style "width" (String.fromFloat remainingPercentage ++ "%")
