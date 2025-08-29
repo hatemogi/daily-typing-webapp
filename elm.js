@@ -6243,6 +6243,7 @@ var $author$project$Main$init = function (_v0) {
 			currentPosition: 0,
 			currentTime: $elm$time$Time$millisToPosix(0),
 			endTime: $elm$core$Maybe$Nothing,
+			gracePeriodStartTime: $elm$core$Maybe$Nothing,
 			isComplete: false,
 			meditations: _List_Nil,
 			mistakes: 0,
@@ -6532,6 +6533,7 @@ var $author$project$Main$GotRandomIndex = function (a) {
 };
 var $author$project$Main$SessionActive = {$: 'SessionActive'};
 var $author$project$Main$SessionCompleted = {$: 'SessionCompleted'};
+var $author$project$Main$SessionGracePeriod = {$: 'SessionGracePeriod'};
 var $elm$core$Task$onError = _Scheduler_onError;
 var $elm$core$Task$attempt = F2(
 	function (resultToMessage, task) {
@@ -6836,11 +6838,12 @@ var $author$project$Main$update = F2(
 				} else {
 					var meditation = _v2.a;
 					if (model.isComplete && (key === 'Enter')) {
-						var newCompletedSessions = _Utils_eq(model.sessionState, $author$project$Main$SessionActive) ? (model.completedSessions + 1) : model.completedSessions;
+						var newSessionState = _Utils_eq(model.sessionState, $author$project$Main$SessionGracePeriod) ? $author$project$Main$SessionCompleted : model.sessionState;
+						var newCompletedSessions = (_Utils_eq(model.sessionState, $author$project$Main$SessionActive) || _Utils_eq(model.sessionState, $author$project$Main$SessionGracePeriod)) ? (model.completedSessions + 1) : model.completedSessions;
 						return _Utils_Tuple2(
 							_Utils_update(
 								model,
-								{completedSessions: newCompletedSessions, correctedPositions: _List_Nil, currentPosition: 0, endTime: $elm$core$Maybe$Nothing, isComplete: false, mistakes: 0, startTime: $elm$core$Maybe$Nothing, userInput: ''}),
+								{completedSessions: newCompletedSessions, correctedPositions: _List_Nil, currentPosition: 0, endTime: $elm$core$Maybe$Nothing, isComplete: false, mistakes: 0, sessionState: newSessionState, startTime: $elm$core$Maybe$Nothing, userInput: ''}),
 							A2(
 								$elm$random$Random$generate,
 								$author$project$Main$GotRandomIndex,
@@ -6906,15 +6909,20 @@ var $author$project$Main$update = F2(
 										result.position,
 										$elm$core$String$length(meditation.text)) > -1;
 									var newEndTime = isComplete ? $elm$core$Maybe$Just(model.currentTime) : model.endTime;
-									return mistakeLimitExceeded ? _Utils_Tuple2(
-										_Utils_update(
-											model,
-											{correctedPositions: _List_Nil, currentPosition: 0, endTime: $elm$core$Maybe$Nothing, mistakes: 0, startTime: $elm$core$Maybe$Nothing, userInput: ''}),
-										$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
-										_Utils_update(
-											model,
-											{correctedPositions: result.correctedPositions, currentPosition: result.position, endTime: newEndTime, isComplete: isComplete, mistakes: result.mistakes, startTime: newStartTime, userInput: result.userInput}),
-										$elm$core$Platform$Cmd$none);
+									if (mistakeLimitExceeded) {
+										var newSessionState = _Utils_eq(model.sessionState, $author$project$Main$SessionGracePeriod) ? $author$project$Main$SessionCompleted : model.sessionState;
+										return _Utils_Tuple2(
+											_Utils_update(
+												model,
+												{correctedPositions: _List_Nil, currentPosition: 0, endTime: $elm$core$Maybe$Nothing, mistakes: 0, sessionState: newSessionState, startTime: $elm$core$Maybe$Nothing, userInput: ''}),
+											$elm$core$Platform$Cmd$none);
+									} else {
+										return _Utils_Tuple2(
+											_Utils_update(
+												model,
+												{correctedPositions: result.correctedPositions, currentPosition: result.position, endTime: newEndTime, isComplete: isComplete, mistakes: result.mistakes, startTime: newStartTime, userInput: result.userInput}),
+											$elm$core$Platform$Cmd$none);
+									}
 								}
 							}
 						}
@@ -6938,10 +6946,10 @@ var $author$project$Main$update = F2(
 					model,
 					{currentTime: time});
 				var sessionShouldEnd = function () {
-					var _v4 = _Utils_Tuple2(model.sessionState, model.sessionStartTime);
-					if ((_v4.a.$ === 'SessionActive') && (_v4.b.$ === 'Just')) {
-						var _v5 = _v4.a;
-						var startTime = _v4.b.a;
+					var _v6 = _Utils_Tuple2(model.sessionState, model.sessionStartTime);
+					if ((_v6.a.$ === 'SessionActive') && (_v6.b.$ === 'Just')) {
+						var _v7 = _v6.a;
+						var startTime = _v6.b.a;
 						var durationMillis = (model.selectedSessionDuration * 60) * 1000;
 						return _Utils_cmp(
 							$elm$time$Time$posixToMillis(time) - $elm$time$Time$posixToMillis(startTime),
@@ -6950,11 +6958,32 @@ var $author$project$Main$update = F2(
 						return false;
 					}
 				}();
-				return sessionShouldEnd ? _Utils_Tuple2(
+				var gracePeriodShouldEnd = function () {
+					var _v4 = _Utils_Tuple2(model.sessionState, model.gracePeriodStartTime);
+					if ((_v4.a.$ === 'SessionGracePeriod') && (_v4.b.$ === 'Just')) {
+						var _v5 = _v4.a;
+						var graceStartTime = _v4.b.a;
+						return ($elm$time$Time$posixToMillis(time) - $elm$time$Time$posixToMillis(graceStartTime)) >= 120000;
+					} else {
+						return false;
+					}
+				}();
+				return (sessionShouldEnd && (!model.isComplete)) ? _Utils_Tuple2(
+					_Utils_update(
+						updatedModel,
+						{
+							gracePeriodStartTime: $elm$core$Maybe$Just(time),
+							sessionState: $author$project$Main$SessionGracePeriod
+						}),
+					$elm$core$Platform$Cmd$none) : (gracePeriodShouldEnd ? _Utils_Tuple2(
 					_Utils_update(
 						updatedModel,
 						{sessionState: $author$project$Main$SessionCompleted}),
-					$elm$core$Platform$Cmd$none) : _Utils_Tuple2(updatedModel, $elm$core$Platform$Cmd$none);
+					$elm$core$Platform$Cmd$none) : ((sessionShouldEnd && model.isComplete) ? _Utils_Tuple2(
+					_Utils_update(
+						updatedModel,
+						{sessionState: $author$project$Main$SessionCompleted}),
+					$elm$core$Platform$Cmd$none) : _Utils_Tuple2(updatedModel, $elm$core$Platform$Cmd$none)));
 			case 'StartSession':
 				return _Utils_Tuple2(
 					_Utils_update(
@@ -6975,7 +7004,7 @@ var $author$project$Main$update = F2(
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{completedSessions: 0, sessionStartTime: $elm$core$Maybe$Nothing, sessionState: $author$project$Main$SessionNotStarted}),
+						{completedSessions: 0, gracePeriodStartTime: $elm$core$Maybe$Nothing, sessionStartTime: $elm$core$Maybe$Nothing, sessionState: $author$project$Main$SessionNotStarted}),
 					$elm$core$Platform$Cmd$none);
 			default:
 				var minutes = msg.a;
@@ -7006,6 +7035,18 @@ var $author$project$Main$SelectSessionDuration = function (a) {
 };
 var $author$project$Main$StartSession = {$: 'StartSession'};
 var $elm$html$Html$button = _VirtualDom_node('button');
+var $author$project$Main$calculateGracePeriodTimeLeft = function (model) {
+	var _v0 = _Utils_Tuple2(model.sessionState, model.gracePeriodStartTime);
+	if ((_v0.a.$ === 'SessionGracePeriod') && (_v0.b.$ === 'Just')) {
+		var _v1 = _v0.a;
+		var startTime = _v0.b.a;
+		var elapsed = $elm$time$Time$posixToMillis(model.currentTime) - $elm$time$Time$posixToMillis(startTime);
+		var remaining = A2($elm$core$Basics$max, 0, 120000 - elapsed);
+		return (remaining / 1000) | 0;
+	} else {
+		return 120;
+	}
+};
 var $author$project$Main$calculateSessionTimeLeft = function (model) {
 	var _v0 = _Utils_Tuple2(model.sessionState, model.sessionStartTime);
 	if ((_v0.a.$ === 'SessionActive') && (_v0.b.$ === 'Just')) {
@@ -7219,6 +7260,69 @@ var $author$project$Main$viewSessionTimer = function (model) {
 													$elm$html$Html$text(
 													'⏱️ ' + $author$project$Main$formatSessionTime(
 														$author$project$Main$calculateSessionTimeLeft(model)))
+												])),
+											A2(
+											$elm$html$Html$div,
+											_List_fromArray(
+												[
+													$elm$html$Html$Attributes$class('session-completed-compact')
+												]),
+											_List_fromArray(
+												[
+													$elm$html$Html$text(
+													'✅ ' + ($elm$core$String$fromInt(model.completedSessions) + '개 완성'))
+												])),
+											A2(
+											$elm$html$Html$button,
+											_List_fromArray(
+												[
+													$elm$html$Html$Events$onClick($author$project$Main$EndSession),
+													$elm$html$Html$Attributes$class('btn-session-stop-compact')
+												]),
+											_List_fromArray(
+												[
+													$elm$html$Html$text('종료')
+												]))
+										]))
+								]));
+					case 'SessionGracePeriod':
+						return A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('session-grace-period')
+								]),
+							_List_fromArray(
+								[
+									A2(
+									$elm$html$Html$div,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$class('session-info-compact')
+										]),
+									_List_fromArray(
+										[
+											A2(
+											$elm$html$Html$div,
+											_List_fromArray(
+												[
+													$elm$html$Html$Attributes$class('grace-period-message')
+												]),
+											_List_fromArray(
+												[
+													$elm$html$Html$text('⏰ 여유시간')
+												])),
+											A2(
+											$elm$html$Html$div,
+											_List_fromArray(
+												[
+													$elm$html$Html$Attributes$class('session-time-compact')
+												]),
+											_List_fromArray(
+												[
+													$elm$html$Html$text(
+													'남은 시간: ' + $author$project$Main$formatSessionTime(
+														$author$project$Main$calculateGracePeriodTimeLeft(model)))
 												])),
 											A2(
 											$elm$html$Html$div,
@@ -7725,6 +7829,32 @@ var $author$project$Main$view = function (model) {
 												]));
 									} else {
 										var meditation = _v1.a;
+										return A2($author$project$Main$viewTypingPractice, model, meditation);
+									}
+								}()
+								]));
+					case 'SessionGracePeriod':
+						return A2(
+							$elm$html$Html$div,
+							_List_Nil,
+							_List_fromArray(
+								[
+									$author$project$Main$viewSessionTimer(model),
+									function () {
+									var _v2 = model.currentMeditation;
+									if (_v2.$ === 'Nothing') {
+										return A2(
+											$elm$html$Html$div,
+											_List_fromArray(
+												[
+													$elm$html$Html$Attributes$class('loading')
+												]),
+											_List_fromArray(
+												[
+													$elm$html$Html$text('명상록을 불러오는 중...')
+												]));
+									} else {
+										var meditation = _v2.a;
 										return A2($author$project$Main$viewTypingPractice, model, meditation);
 									}
 								}()

@@ -38,11 +38,13 @@ type alias Model =
     , sessionStartTime : Maybe Time.Posix
     , selectedSessionDuration : Int  -- in minutes
     , completedSessions : Int
+    , gracePeriodStartTime : Maybe Time.Posix
     }
 
 type SessionState
     = SessionNotStarted
     | SessionActive
+    | SessionGracePeriod  -- New state for grace period
     | SessionCompleted
 
 type alias Meditation =
@@ -83,6 +85,7 @@ init _ =
       , sessionStartTime = Nothing
       , selectedSessionDuration = 10  -- default 10 minutes
       , completedSessions = 0
+      , gracePeriodStartTime = Nothing
       }
     , loadMeditations
     )
@@ -155,10 +158,17 @@ update msg model =
                         -- Start next text when Enter is pressed after completion
                         let
                             newCompletedSessions =
-                                if model.sessionState == SessionActive then
+                                if model.sessionState == SessionActive || model.sessionState == SessionGracePeriod then
                                     model.completedSessions + 1
                                 else
                                     model.completedSessions
+                            
+                            -- End grace period when text is completed
+                            newSessionState =
+                                if model.sessionState == SessionGracePeriod then
+                                    SessionCompleted
+                                else
+                                    model.sessionState
                         in
                         ( { model
                             | userInput = ""
@@ -169,6 +179,7 @@ update msg model =
                             , startTime = Nothing
                             , endTime = Nothing
                             , completedSessions = newCompletedSessions
+                            , sessionState = newSessionState
                           }
                         , Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1))
                         )
@@ -307,7 +318,14 @@ update msg model =
                                     model.endTime
                         in
                         if mistakeLimitExceeded then
-                            -- Reset when mistake limit exceeded
+                            -- Reset when mistake limit exceeded, and end grace period if active
+                            let
+                                newSessionState = 
+                                    if model.sessionState == SessionGracePeriod then
+                                        SessionCompleted
+                                    else
+                                        model.sessionState
+                            in
                             ( { model
                                 | userInput = ""
                                 , currentPosition = 0
@@ -315,6 +333,7 @@ update msg model =
                                 , correctedPositions = []
                                 , startTime = Nothing
                                 , endTime = Nothing
+                                , sessionState = newSessionState
                               }
                             , Cmd.none
                             )
@@ -348,7 +367,7 @@ update msg model =
             let
                 updatedModel = { model | currentTime = time }
                 
-                -- Check if session should end
+                -- Check if session should end and start grace period
                 sessionShouldEnd = 
                     case (model.sessionState, model.sessionStartTime) of
                         (SessionActive, Just startTime) ->
@@ -358,8 +377,26 @@ update msg model =
                             Time.posixToMillis time - Time.posixToMillis startTime >= durationMillis
                         _ ->
                             False
+                
+                -- Check if grace period should end (2 minutes = 120000 milliseconds)
+                gracePeriodShouldEnd =
+                    case (model.sessionState, model.gracePeriodStartTime) of
+                        (SessionGracePeriod, Just graceStartTime) ->
+                            Time.posixToMillis time - Time.posixToMillis graceStartTime >= 120000
+                        _ ->
+                            False
             in
-            if sessionShouldEnd then
+            if sessionShouldEnd && not model.isComplete then
+                -- Start grace period if text is not complete
+                ( { updatedModel 
+                    | sessionState = SessionGracePeriod
+                    , gracePeriodStartTime = Just time
+                  }, Cmd.none )
+            else if gracePeriodShouldEnd then
+                -- End grace period
+                ( { updatedModel | sessionState = SessionCompleted }, Cmd.none )
+            else if sessionShouldEnd && model.isComplete then
+                -- End session immediately if text is complete
                 ( { updatedModel | sessionState = SessionCompleted }, Cmd.none )
             else
                 ( updatedModel, Cmd.none )
@@ -378,6 +415,7 @@ update msg model =
                 | sessionState = SessionNotStarted
                 , sessionStartTime = Nothing
                 , completedSessions = 0
+                , gracePeriodStartTime = Nothing
               }
             , Cmd.none
             )
@@ -489,6 +527,19 @@ formatSessionTime totalSeconds =
     String.padLeft 2 '0' (String.fromInt minutes) ++ ":" ++ String.padLeft 2 '0' (String.fromInt seconds)
 
 
+calculateGracePeriodTimeLeft : Model -> Int
+calculateGracePeriodTimeLeft model =
+    case (model.sessionState, model.gracePeriodStartTime) of
+        (SessionGracePeriod, Just startTime) ->
+            let
+                elapsed = Time.posixToMillis model.currentTime - Time.posixToMillis startTime
+                remaining = Basics.max 0 (120000 - elapsed)  -- 2 minutes in milliseconds
+            in
+            remaining // 1000  -- Convert to seconds
+        _ ->
+            120  -- 2 minutes in seconds
+
+
 view : Model -> Html Msg
 view model =
     div [ class "container" ]
@@ -499,6 +550,17 @@ view model =
                 viewSessionTimer model
             
             SessionActive ->
+                div []
+                    [ viewSessionTimer model
+                    , case model.currentMeditation of
+                        Nothing ->
+                            div [ class "loading" ] [ text "명상록을 불러오는 중..." ]
+                        
+                        Just meditation ->
+                            viewTypingPractice model meditation
+                    ]
+            
+            SessionGracePeriod ->
                 div []
                     [ viewSessionTimer model
                     , case model.currentMeditation of
@@ -597,6 +659,19 @@ viewSessionTimer model =
                     [ div [ class "session-info-compact" ]
                         [ div [ class "session-time-compact" ]
                             [ text ("⏱️ " ++ formatSessionTime (calculateSessionTimeLeft model)) ]
+                        , div [ class "session-completed-compact" ]
+                            [ text ("✅ " ++ String.fromInt model.completedSessions ++ "개 완성") ]
+                        , button [ onClick EndSession, class "btn-session-stop-compact" ] [ text "종료" ]
+                        ]
+                    ]
+            
+            SessionGracePeriod ->
+                div [ class "session-grace-period" ]
+                    [ div [ class "session-info-compact" ]
+                        [ div [ class "grace-period-message" ]
+                            [ text "⏰ 여유시간" ]
+                        , div [ class "session-time-compact" ]
+                            [ text ("남은 시간: " ++ formatSessionTime (calculateGracePeriodTimeLeft model)) ]
                         , div [ class "session-completed-compact" ]
                             [ text ("✅ " ++ String.fromInt model.completedSessions ++ "개 완성") ]
                         , button [ onClick EndSession, class "btn-session-stop-compact" ] [ text "종료" ]
