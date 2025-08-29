@@ -391,7 +391,7 @@ update msg model =
                 ( { updatedModel 
                     | sessionState = SessionGracePeriod
                     , gracePeriodStartTime = Just time
-                  }, Cmd.none )
+                  }, Task.attempt (\_ -> FocusTypingArea) (Dom.focus "typing-area") )
             else if sessionShouldEnd && model.isComplete then
                 -- End session immediately if text is complete
                 ( { updatedModel | sessionState = SessionCompleted }, Cmd.none )
@@ -549,7 +549,7 @@ view model =
                 div []
                     [ case model.currentMeditation of
                         Nothing ->
-                            viewSessionTimer model
+                            div [ class "loading" ] [ text "명상록을 불러오는 중..." ]
                         
                         Just meditation ->
                             viewTypingPractice model meditation
