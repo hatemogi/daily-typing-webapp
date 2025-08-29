@@ -7528,24 +7528,25 @@ var $author$project$Main$viewTypingPractice = F2(
 							_List_fromArray(
 								[
 									A3($author$project$Main$viewTypingText, meditation.text, model.currentPosition, model.correctedPositions)
-								]))
-						])),
-					A2(
-					$elm$html$Html$div,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$class('stats')
-						]),
-					_List_fromArray(
-						[
+								])),
 							A2(
 							$elm$html$Html$div,
 							_List_fromArray(
 								[
-									$elm$html$Html$Attributes$class('lives')
+									$elm$html$Html$Attributes$class('text-lives')
 								]),
 							_List_fromArray(
 								[
+									A2(
+									$elm$html$Html$div,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$class('lives-label')
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text('이 지문 도전 기회:')
+										])),
 									A2(
 									$elm$html$Html$div,
 									_List_fromArray(
@@ -7563,7 +7564,7 @@ var $author$project$Main$viewTypingPractice = F2(
 										]),
 									_List_fromArray(
 										[
-											$elm$html$Html$text('⚠️ 생명이 모두 소진되었습니다! 다음 오타 시 처음부터 다시 시작됩니다.')
+											$elm$html$Html$text('⚠️ 기회를 모두 사용했습니다! 다음 오타 시 처음부터 다시 시작됩니다.')
 										])) : $elm$html$Html$text('')
 								]))
 						])),

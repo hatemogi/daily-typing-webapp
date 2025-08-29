@@ -531,13 +531,12 @@ viewTypingPractice model meditation =
                 , on "keydown" (Json.map KeyPressed (Json.field "key" Json.string))
                 ]
                 [ viewTypingText meditation.text model.currentPosition model.correctedPositions ]
-            ]
-        , div [ class "stats" ]
-            [ div [ class "lives" ]
-                [ div [ class "lives-display" ] (viewLives model meditation.text)
+            , div [ class "text-lives" ]
+                [ div [ class "lives-label" ] [ text "이 지문 도전 기회:" ]
+                , div [ class "lives-display" ] (viewLives model meditation.text)
                 , if model.mistakes >= (calculateMaxLives model meditation.text) then
                     div [ class "lives-warning" ]
-                        [ text "⚠️ 생명이 모두 소진되었습니다! 다음 오타 시 처음부터 다시 시작됩니다." ]
+                        [ text "⚠️ 기회를 모두 사용했습니다! 다음 오타 시 처음부터 다시 시작됩니다." ]
                   else
                     text ""
                 ]
