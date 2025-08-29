@@ -34,21 +34,7 @@ type alias Model =
     , startTime : Maybe Time.Posix
     , currentTime : Time.Posix
     , endTime : Maybe Time.Posix
-    , breathingState : BreathingState
-    , breathingCount : Int
-    , breathingPhase : BreathingPhase
     }
-
-type BreathingState
-    = BreathingGuide
-    | BreathingComplete
-    | TypingReady
-
-type BreathingPhase
-    = Inhale
-    | Hold
-    | Exhale
-    | Rest
 
 
 type alias Meditation =
@@ -68,9 +54,6 @@ type Msg
     | GotRandomIndex Int
     | Tick Time.Posix
     | FocusTypingArea
-    | StartBreathing
-    | BreathingTick Time.Posix
-    | SkipBreathing
 
 
 init : () -> ( Model, Cmd Msg )
@@ -85,9 +68,6 @@ init _ =
       , startTime = Nothing
       , currentTime = Time.millisToPosix 0
       , endTime = Nothing
-      , breathingState = BreathingGuide
-      , breathingCount = 0
-      , breathingPhase = Inhale
       }
     , loadMeditations
     )
@@ -126,9 +106,8 @@ update msg model =
             in
             ( { model 
                 | meditations = filteredMeditations
-                , breathingState = BreathingGuide
               }
-            , Cmd.none
+            , Random.generate GotRandomIndex (Random.int 0 (List.length filteredMeditations - 1))
             )
 
         LoadMeditations (Err _) ->
@@ -345,70 +324,11 @@ update msg model =
         Tick time ->
             ( { model | currentTime = time }, Cmd.none )
 
-        StartBreathing ->
-            ( { model 
-                | breathingState = BreathingGuide
-                , breathingCount = 0
-                , breathingPhase = Inhale
-              }
-            , Cmd.none
-            )
-
-        BreathingTick time ->
-            case model.breathingState of
-                BreathingGuide ->
-                    let
-                        newPhase = 
-                            case model.breathingPhase of
-                                Inhale -> Hold
-                                Hold -> Exhale
-                                Exhale -> Rest
-                                Rest -> 
-                                    if model.breathingCount < 2 then
-                                        Inhale
-                                    else
-                                        Inhale
-
-                        newCount = 
-                            if model.breathingPhase == Rest then
-                                model.breathingCount + 1
-                            else
-                                model.breathingCount
-
-                        newState = 
-                            if newCount >= 3 then
-                                BreathingComplete
-                            else
-                                BreathingGuide
-                    in
-                    ( { model 
-                        | breathingPhase = newPhase
-                        , breathingCount = newCount
-                        , breathingState = newState
-                      }
-                    , if newState == BreathingComplete then
-                        Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1))
-                      else
-                        Cmd.none
-                    )
-
-                _ ->
-                    ( model, Cmd.none )
-
-        SkipBreathing ->
-            ( { model | breathingState = BreathingComplete }
-            , Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1))
-            )
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    case model.breathingState of
-        BreathingGuide ->
-            Time.every 2000 BreathingTick
-        
-        _ ->
-            Time.every 100 Tick
+    Time.every 100 Tick
 
 
 isModifierKey : String -> Bool
@@ -462,63 +382,14 @@ view model =
     div [ class "container" ]
         [ h1 [ class "title" ] [ text "Daily Typing Practice" ]
         , h2 [ class "subtitle" ] [ text "명상록으로 하루를 시작하세요" ]
-        , case model.breathingState of
-            BreathingGuide ->
-                viewBreathingGuide model
+        , case model.currentMeditation of
+            Nothing ->
+                div [ class "loading" ] [ text "명상록을 불러오는 중..." ]
             
-            BreathingComplete ->
-                case model.currentMeditation of
-                    Nothing ->
-                        div [ class "loading" ] [ text "명상록을 불러오는 중..." ]
-                    
-                    Just meditation ->
-                        viewTypingPractice model meditation
-            
-            TypingReady ->
-                case model.currentMeditation of
-                    Nothing ->
-                        div [ class "loading" ] [ text "명상록을 불러오는 중..." ]
-
-                    Just meditation ->
-                        viewTypingPractice model meditation
+            Just meditation ->
+                viewTypingPractice model meditation
         ]
 
-
-viewBreathingGuide : Model -> Html Msg
-viewBreathingGuide model =
-    div [ class "breathing-guide" ]
-        [ div [ class "breathing-content" ]
-            [ h3 [ class "breathing-title" ] [ text "시작하기 전 마음을 가다듬어보세요" ]
-            , div [ class "breathing-circle" ]
-                [ div [ class ("breathing-animation " ++ breathingPhaseClass model.breathingPhase) ] []
-                ]
-            , div [ class "breathing-instruction" ]
-                [ text (breathingInstruction model.breathingPhase) ]
-            , div [ class "breathing-counter" ]
-                [ text (String.fromInt (model.breathingCount + 1) ++ "/3 회차") ]
-            , div [ class "breathing-controls" ]
-                [ button [ onClick SkipBreathing, class "btn-skip" ] [ text "건너뛰기" ]
-                ]
-            ]
-        ]
-
-
-breathingPhaseClass : BreathingPhase -> String
-breathingPhaseClass phase =
-    case phase of
-        Inhale -> "inhale"
-        Hold -> "hold"
-        Exhale -> "exhale"
-        Rest -> "rest"
-
-
-breathingInstruction : BreathingPhase -> String
-breathingInstruction phase =
-    case phase of
-        Inhale -> "코로 천천히 들이마시세요"
-        Hold -> "잠시 숨을 멈춰주세요"
-        Exhale -> "입으로 천천히 내쉬세요"
-        Rest -> "잠시 휴식하세요"
 
 
 viewTypingPractice : Model -> Meditation -> Html Msg
@@ -538,11 +409,11 @@ viewTypingPractice model meditation =
                 [ viewTypingText meditation.text model.currentPosition model.correctedPositions ]
             ]
         , div [ class "stats" ]
-            [ div [ class "lives" ]
-                [ div [ class "lives-display" ] (viewLives (3 - model.mistakes))
+            [ div [ class "mistakes-display" ]
+                [ text ("실수: " ++ String.fromInt model.mistakes ++ "/3")
                 , if model.mistakes >= 3 then
-                    div [ class "lives-warning" ]
-                        [ text "⚠️ 생명이 모두 소진되었습니다! 다음 오타 시 처음부터 다시 시작됩니다." ]
+                    div [ class "mistake-warning" ]
+                        [ text "⚠️ 실수 한도 초과! 다음 오타 시 처음부터 다시 시작됩니다." ]
                   else
                     text ""
                 ]
@@ -558,23 +429,13 @@ viewTypingPractice model meditation =
                     , div [ class "final-accuracy" ]
                         [ text ("정확도: " ++ String.fromInt (calculateAccuracy model meditation.text) ++ "%") ]
                     ]
-                , button [ onClick StartBreathing, class "btn-primary" ] [ text "새로운 구절로 시작" ]
+                , button [ onClick StartOver, class "btn-primary" ] [ text "새로운 구절로 시작" ]
                 ]
           else
             div [ class "controls" ]
                 [ button [ onClick StartOver, class "btn-secondary" ] [ text "다시 시작" ] ]
         ]
 
-
-viewLives : Int -> List (Html Msg)
-viewLives remainingLives =
-    List.range 1 3
-        |> List.map (\index ->
-            if index <= remainingLives then
-                span [ class "life-heart full" ] [ text "❤️" ]
-            else
-                span [ class "life-heart empty" ] [ text "🤍" ]
-           )
 
 
 viewTypingText : String -> Int -> List Int -> Html Msg

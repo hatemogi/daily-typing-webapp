@@ -5417,8 +5417,6 @@ var $elm$core$Task$perform = F2(
 				A2($elm$core$Task$map, toMessage, task)));
 	});
 var $elm$browser$Browser$element = _Browser_element;
-var $author$project$Main$BreathingGuide = {$: 'BreathingGuide'};
-var $author$project$Main$Inhale = {$: 'Inhale'};
 var $author$project$Main$LoadMeditations = function (a) {
 	return {$: 'LoadMeditations', a: a};
 };
@@ -6238,9 +6236,6 @@ var $elm$time$Time$millisToPosix = $elm$time$Time$Posix;
 var $author$project$Main$init = function (_v0) {
 	return _Utils_Tuple2(
 		{
-			breathingCount: 0,
-			breathingPhase: $author$project$Main$Inhale,
-			breathingState: $author$project$Main$BreathingGuide,
 			correctedPositions: _List_Nil,
 			currentMeditation: $elm$core$Maybe$Nothing,
 			currentPosition: 0,
@@ -6253,9 +6248,6 @@ var $author$project$Main$init = function (_v0) {
 			userInput: ''
 		},
 		$author$project$Main$loadMeditations);
-};
-var $author$project$Main$BreathingTick = function (a) {
-	return {$: 'BreathingTick', a: a};
 };
 var $author$project$Main$Tick = function (a) {
 	return {$: 'Tick', a: a};
@@ -6527,21 +6519,12 @@ var $elm$time$Time$every = F2(
 			A2($elm$time$Time$Every, interval, tagger));
 	});
 var $author$project$Main$subscriptions = function (model) {
-	var _v0 = model.breathingState;
-	if (_v0.$ === 'BreathingGuide') {
-		return A2($elm$time$Time$every, 2000, $author$project$Main$BreathingTick);
-	} else {
-		return A2($elm$time$Time$every, 100, $author$project$Main$Tick);
-	}
+	return A2($elm$time$Time$every, 100, $author$project$Main$Tick);
 };
-var $author$project$Main$BreathingComplete = {$: 'BreathingComplete'};
-var $author$project$Main$Exhale = {$: 'Exhale'};
 var $author$project$Main$FocusTypingArea = {$: 'FocusTypingArea'};
 var $author$project$Main$GotRandomIndex = function (a) {
 	return {$: 'GotRandomIndex', a: a};
 };
-var $author$project$Main$Hold = {$: 'Hold'};
-var $author$project$Main$Rest = {$: 'Rest'};
 var $elm$core$Task$onError = _Scheduler_onError;
 var $elm$core$Task$attempt = F2(
 	function (resultToMessage, task) {
@@ -6774,6 +6757,7 @@ var $author$project$Main$isModifierKey = function (key) {
 		_List_fromArray(
 			['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown', 'Insert', 'Delete', 'Escape', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12']));
 };
+var $elm$core$Basics$neq = _Utils_notEqual;
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $elm$core$Basics$not = _Basics_not;
@@ -6793,8 +6777,14 @@ var $author$project$Main$update = F2(
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
-							{breathingState: $author$project$Main$BreathingGuide, meditations: filteredMeditations}),
-						$elm$core$Platform$Cmd$none);
+							{meditations: filteredMeditations}),
+						A2(
+							$elm$random$Random$generate,
+							$author$project$Main$GotRandomIndex,
+							A2(
+								$elm$random$Random$int,
+								0,
+								$elm$core$List$length(filteredMeditations) - 1)));
 				} else {
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				}
@@ -6853,29 +6843,50 @@ var $author$project$Main$update = F2(
 								if (key === 'Backspace') {
 									return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 								} else {
-									var wasAlreadyIncorrect = A2($elm$core$List$member, model.currentPosition, model.correctedPositions);
 									var targetChar = A3($elm$core$String$slice, model.currentPosition, model.currentPosition + 1, meditation.text);
 									var isFirstCharacter = !model.currentPosition;
 									var isCorrect = _Utils_eq(
 										$elm$core$String$toLower(key),
 										$elm$core$String$toLower(targetChar));
-									var isNewMistake = (!isCorrect) && ((!wasAlreadyIncorrect) && (!isFirstCharacter));
-									var newCorrectedPositions = isNewMistake ? A2($elm$core$List$cons, model.currentPosition, model.correctedPositions) : model.correctedPositions;
-									var newMistakes = isNewMistake ? (model.mistakes + 1) : model.mistakes;
-									var mistakeLimitExceeded = newMistakes > 3;
-									var newPosition = isCorrect ? (model.currentPosition + 1) : model.currentPosition;
+									var result = function () {
+										if ((targetChar === ' ') && (key === ' ')) {
+											return {correctedPositions: model.correctedPositions, mistakes: model.mistakes, position: model.currentPosition + 1, userInput: model.userInput + ' '};
+										} else {
+											if ((targetChar === ' ') && (key !== ' ')) {
+												var wasAlreadyIncorrect = A2($elm$core$List$member, model.currentPosition + 1, model.correctedPositions);
+												var nextTargetChar = A3($elm$core$String$slice, model.currentPosition + 1, model.currentPosition + 2, meditation.text);
+												var nextIsCorrect = _Utils_eq(
+													$elm$core$String$toLower(key),
+													$elm$core$String$toLower(nextTargetChar));
+												var newPosition = nextIsCorrect ? (model.currentPosition + 2) : (model.currentPosition + 1);
+												var newInput = nextIsCorrect ? (model.userInput + (' ' + key)) : (model.userInput + ' ');
+												var isNewMistake = (!nextIsCorrect) && (!wasAlreadyIncorrect);
+												var newCorrectedPositions = isNewMistake ? A2($elm$core$List$cons, model.currentPosition + 1, model.correctedPositions) : model.correctedPositions;
+												var newMistakes = isNewMistake ? (model.mistakes + 1) : model.mistakes;
+												return {correctedPositions: newCorrectedPositions, mistakes: newMistakes, position: newPosition, userInput: newInput};
+											} else {
+												var wasAlreadyIncorrect = A2($elm$core$List$member, model.currentPosition, model.correctedPositions);
+												var newUserInput = isCorrect ? _Utils_ap(model.userInput, key) : model.userInput;
+												var newPosition = isCorrect ? (model.currentPosition + 1) : model.currentPosition;
+												var isNewMistake = (!isCorrect) && ((!wasAlreadyIncorrect) && (!isFirstCharacter));
+												var newCorrectedPositions = isNewMistake ? A2($elm$core$List$cons, model.currentPosition, model.correctedPositions) : model.correctedPositions;
+												var newMistakes = isNewMistake ? (model.mistakes + 1) : model.mistakes;
+												return {correctedPositions: newCorrectedPositions, mistakes: newMistakes, position: newPosition, userInput: newUserInput};
+											}
+										}
+									}();
+									var mistakeLimitExceeded = result.mistakes > 3;
 									var newStartTime = function () {
 										var _v3 = model.startTime;
 										if (_v3.$ === 'Nothing') {
-											return isCorrect ? $elm$core$Maybe$Just(model.currentTime) : $elm$core$Maybe$Nothing;
+											return (_Utils_cmp(result.position, model.currentPosition) > 0) ? $elm$core$Maybe$Just(model.currentTime) : $elm$core$Maybe$Nothing;
 										} else {
 											var time = _v3.a;
 											return $elm$core$Maybe$Just(time);
 										}
 									}();
-									var newUserInput = isCorrect ? _Utils_ap(model.userInput, key) : model.userInput;
 									var isComplete = _Utils_cmp(
-										newPosition,
+										result.position,
 										$elm$core$String$length(meditation.text)) > -1;
 									var newEndTime = isComplete ? $elm$core$Maybe$Just(model.currentTime) : model.endTime;
 									return mistakeLimitExceeded ? _Utils_Tuple2(
@@ -6885,7 +6896,7 @@ var $author$project$Main$update = F2(
 										$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
 										_Utils_update(
 											model,
-											{correctedPositions: newCorrectedPositions, currentPosition: newPosition, endTime: newEndTime, isComplete: isComplete, mistakes: newMistakes, startTime: newStartTime, userInput: newUserInput}),
+											{correctedPositions: result.correctedPositions, currentPosition: result.position, endTime: newEndTime, isComplete: isComplete, mistakes: result.mistakes, startTime: newStartTime, userInput: result.userInput}),
 										$elm$core$Platform$Cmd$none);
 								}
 							}
@@ -6904,64 +6915,13 @@ var $author$project$Main$update = F2(
 							$elm$random$Random$int,
 							0,
 							$elm$core$List$length(model.meditations) - 1)));
-			case 'Tick':
+			default:
 				var time = msg.a;
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{currentTime: time}),
 					$elm$core$Platform$Cmd$none);
-			case 'StartBreathing':
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{breathingCount: 0, breathingPhase: $author$project$Main$Inhale, breathingState: $author$project$Main$BreathingGuide}),
-					$elm$core$Platform$Cmd$none);
-			case 'BreathingTick':
-				var time = msg.a;
-				var _v4 = model.breathingState;
-				if (_v4.$ === 'BreathingGuide') {
-					var newPhase = function () {
-						var _v5 = model.breathingPhase;
-						switch (_v5.$) {
-							case 'Inhale':
-								return $author$project$Main$Hold;
-							case 'Hold':
-								return $author$project$Main$Exhale;
-							case 'Exhale':
-								return $author$project$Main$Rest;
-							default:
-								return (model.breathingCount < 2) ? $author$project$Main$Inhale : $author$project$Main$Inhale;
-						}
-					}();
-					var newCount = _Utils_eq(model.breathingPhase, $author$project$Main$Rest) ? (model.breathingCount + 1) : model.breathingCount;
-					var newState = (newCount >= 3) ? $author$project$Main$BreathingComplete : $author$project$Main$BreathingGuide;
-					return _Utils_Tuple2(
-						_Utils_update(
-							model,
-							{breathingCount: newCount, breathingPhase: newPhase, breathingState: newState}),
-						_Utils_eq(newState, $author$project$Main$BreathingComplete) ? A2(
-							$elm$random$Random$generate,
-							$author$project$Main$GotRandomIndex,
-							A2(
-								$elm$random$Random$int,
-								0,
-								$elm$core$List$length(model.meditations) - 1)) : $elm$core$Platform$Cmd$none);
-				} else {
-					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-				}
-			default:
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{breathingState: $author$project$Main$BreathingComplete}),
-					A2(
-						$elm$random$Random$generate,
-						$author$project$Main$GotRandomIndex,
-						A2(
-							$elm$random$Random$int,
-							0,
-							$elm$core$List$length(model.meditations) - 1)));
 		}
 	});
 var $elm$json$Json$Encode$string = _Json_wrap;
@@ -6978,144 +6938,11 @@ var $elm$html$Html$h1 = _VirtualDom_node('h1');
 var $elm$html$Html$h2 = _VirtualDom_node('h2');
 var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
-var $author$project$Main$SkipBreathing = {$: 'SkipBreathing'};
-var $author$project$Main$breathingInstruction = function (phase) {
-	switch (phase.$) {
-		case 'Inhale':
-			return '코로 천천히 들이마시세요';
-		case 'Hold':
-			return '잠시 숨을 멈춰주세요';
-		case 'Exhale':
-			return '입으로 천천히 내쉬세요';
-		default:
-			return '잠시 휴식하세요';
-	}
-};
-var $author$project$Main$breathingPhaseClass = function (phase) {
-	switch (phase.$) {
-		case 'Inhale':
-			return 'inhale';
-		case 'Hold':
-			return 'hold';
-		case 'Exhale':
-			return 'exhale';
-		default:
-			return 'rest';
-	}
-};
-var $elm$html$Html$button = _VirtualDom_node('button');
-var $elm$html$Html$h3 = _VirtualDom_node('h3');
-var $elm$virtual_dom$VirtualDom$Normal = function (a) {
-	return {$: 'Normal', a: a};
-};
-var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
-var $elm$html$Html$Events$on = F2(
-	function (event, decoder) {
-		return A2(
-			$elm$virtual_dom$VirtualDom$on,
-			event,
-			$elm$virtual_dom$VirtualDom$Normal(decoder));
-	});
-var $elm$html$Html$Events$onClick = function (msg) {
-	return A2(
-		$elm$html$Html$Events$on,
-		'click',
-		$elm$json$Json$Decode$succeed(msg));
-};
-var $author$project$Main$viewBreathingGuide = function (model) {
-	return A2(
-		$elm$html$Html$div,
-		_List_fromArray(
-			[
-				$elm$html$Html$Attributes$class('breathing-guide')
-			]),
-		_List_fromArray(
-			[
-				A2(
-				$elm$html$Html$div,
-				_List_fromArray(
-					[
-						$elm$html$Html$Attributes$class('breathing-content')
-					]),
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$h3,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$class('breathing-title')
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text('시작하기 전 마음을 가다듬어보세요')
-							])),
-						A2(
-						$elm$html$Html$div,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$class('breathing-circle')
-							]),
-						_List_fromArray(
-							[
-								A2(
-								$elm$html$Html$div,
-								_List_fromArray(
-									[
-										$elm$html$Html$Attributes$class(
-										'breathing-animation ' + $author$project$Main$breathingPhaseClass(model.breathingPhase))
-									]),
-								_List_Nil)
-							])),
-						A2(
-						$elm$html$Html$div,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$class('breathing-instruction')
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text(
-								$author$project$Main$breathingInstruction(model.breathingPhase))
-							])),
-						A2(
-						$elm$html$Html$div,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$class('breathing-counter')
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text(
-								$elm$core$String$fromInt(model.breathingCount + 1) + '/3 회차')
-							])),
-						A2(
-						$elm$html$Html$div,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$class('breathing-controls')
-							]),
-						_List_fromArray(
-							[
-								A2(
-								$elm$html$Html$button,
-								_List_fromArray(
-									[
-										$elm$html$Html$Events$onClick($author$project$Main$SkipBreathing),
-										$elm$html$Html$Attributes$class('btn-skip')
-									]),
-								_List_fromArray(
-									[
-										$elm$html$Html$text('건너뛰기')
-									]))
-							]))
-					]))
-			]));
-};
 var $author$project$Main$KeyPressed = function (a) {
 	return {$: 'KeyPressed', a: a};
 };
-var $author$project$Main$StartBreathing = {$: 'StartBreathing'};
 var $author$project$Main$StartOver = {$: 'StartOver'};
+var $elm$html$Html$button = _VirtualDom_node('button');
 var $elm$core$Basics$round = _Basics_round;
 var $author$project$Main$calculateAccuracy = F2(
 	function (model, targetText) {
@@ -7146,7 +6973,25 @@ var $author$project$Main$calculateWPM = F2(
 			return (elapsedMinutes > 0) ? $elm$core$Basics$round(wordsTyped / elapsedMinutes) : 0;
 		}
 	});
+var $elm$html$Html$h3 = _VirtualDom_node('h3');
 var $elm$html$Html$Attributes$id = $elm$html$Html$Attributes$stringProperty('id');
+var $elm$virtual_dom$VirtualDom$Normal = function (a) {
+	return {$: 'Normal', a: a};
+};
+var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
+var $elm$html$Html$Events$on = F2(
+	function (event, decoder) {
+		return A2(
+			$elm$virtual_dom$VirtualDom$on,
+			event,
+			$elm$virtual_dom$VirtualDom$Normal(decoder));
+	});
+var $elm$html$Html$Events$onClick = function (msg) {
+	return A2(
+		$elm$html$Html$Events$on,
+		'click',
+		$elm$json$Json$Decode$succeed(msg));
+};
 var $elm$html$Html$p = _VirtualDom_node('p');
 var $elm$html$Html$Attributes$tabindex = function (n) {
 	return A2(
@@ -7154,37 +6999,11 @@ var $elm$html$Html$Attributes$tabindex = function (n) {
 		'tabIndex',
 		$elm$core$String$fromInt(n));
 };
-var $elm$html$Html$span = _VirtualDom_node('span');
-var $author$project$Main$viewLives = function (remainingLives) {
-	return A2(
-		$elm$core$List$map,
-		function (index) {
-			return (_Utils_cmp(index, remainingLives) < 1) ? A2(
-				$elm$html$Html$span,
-				_List_fromArray(
-					[
-						$elm$html$Html$Attributes$class('life-heart full')
-					]),
-				_List_fromArray(
-					[
-						$elm$html$Html$text('❤️')
-					])) : A2(
-				$elm$html$Html$span,
-				_List_fromArray(
-					[
-						$elm$html$Html$Attributes$class('life-heart empty')
-					]),
-				_List_fromArray(
-					[
-						$elm$html$Html$text('🤍')
-					]));
-		},
-		A2($elm$core$List$range, 1, 3));
-};
 var $elm$core$String$cons = _String_cons;
 var $elm$core$String$fromChar = function (_char) {
 	return A2($elm$core$String$cons, _char, '');
 };
+var $elm$html$Html$span = _VirtualDom_node('span');
 var $elm$core$String$foldr = _String_foldr;
 var $elm$core$String$toList = function (string) {
 	return A3($elm$core$String$foldr, $elm$core$List$cons, _List_Nil, string);
@@ -7299,26 +7118,21 @@ var $author$project$Main$viewTypingPractice = F2(
 							$elm$html$Html$div,
 							_List_fromArray(
 								[
-									$elm$html$Html$Attributes$class('lives')
+									$elm$html$Html$Attributes$class('mistakes-display')
 								]),
 							_List_fromArray(
 								[
-									A2(
-									$elm$html$Html$div,
-									_List_fromArray(
-										[
-											$elm$html$Html$Attributes$class('lives-display')
-										]),
-									$author$project$Main$viewLives(3 - model.mistakes)),
+									$elm$html$Html$text(
+									'실수: ' + ($elm$core$String$fromInt(model.mistakes) + '/3')),
 									(model.mistakes >= 3) ? A2(
 									$elm$html$Html$div,
 									_List_fromArray(
 										[
-											$elm$html$Html$Attributes$class('lives-warning')
+											$elm$html$Html$Attributes$class('mistake-warning')
 										]),
 									_List_fromArray(
 										[
-											$elm$html$Html$text('⚠️ 생명이 모두 소진되었습니다! 다음 오타 시 처음부터 다시 시작됩니다.')
+											$elm$html$Html$text('⚠️ 실수 한도 초과! 다음 오타 시 처음부터 다시 시작됩니다.')
 										])) : $elm$html$Html$text('')
 								]))
 						])),
@@ -7391,7 +7205,7 @@ var $author$project$Main$viewTypingPractice = F2(
 							$elm$html$Html$button,
 							_List_fromArray(
 								[
-									$elm$html$Html$Events$onClick($author$project$Main$StartBreathing),
+									$elm$html$Html$Events$onClick($author$project$Main$StartOver),
 									$elm$html$Html$Attributes$class('btn-primary')
 								]),
 							_List_fromArray(
@@ -7450,44 +7264,21 @@ var $author$project$Main$view = function (model) {
 						$elm$html$Html$text('명상록으로 하루를 시작하세요')
 					])),
 				function () {
-				var _v0 = model.breathingState;
-				switch (_v0.$) {
-					case 'BreathingGuide':
-						return $author$project$Main$viewBreathingGuide(model);
-					case 'BreathingComplete':
-						var _v1 = model.currentMeditation;
-						if (_v1.$ === 'Nothing') {
-							return A2(
-								$elm$html$Html$div,
-								_List_fromArray(
-									[
-										$elm$html$Html$Attributes$class('loading')
-									]),
-								_List_fromArray(
-									[
-										$elm$html$Html$text('명상록을 불러오는 중...')
-									]));
-						} else {
-							var meditation = _v1.a;
-							return A2($author$project$Main$viewTypingPractice, model, meditation);
-						}
-					default:
-						var _v2 = model.currentMeditation;
-						if (_v2.$ === 'Nothing') {
-							return A2(
-								$elm$html$Html$div,
-								_List_fromArray(
-									[
-										$elm$html$Html$Attributes$class('loading')
-									]),
-								_List_fromArray(
-									[
-										$elm$html$Html$text('명상록을 불러오는 중...')
-									]));
-						} else {
-							var meditation = _v2.a;
-							return A2($author$project$Main$viewTypingPractice, model, meditation);
-						}
+				var _v0 = model.currentMeditation;
+				if (_v0.$ === 'Nothing') {
+					return A2(
+						$elm$html$Html$div,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$class('loading')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('명상록을 불러오는 중...')
+							]));
+				} else {
+					var meditation = _v0.a;
+					return A2($author$project$Main$viewTypingPractice, model, meditation);
 				}
 			}()
 			]));
