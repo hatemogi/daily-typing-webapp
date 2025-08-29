@@ -262,7 +262,7 @@ update msg model =
                                     }
 
                             mistakeLimitExceeded =
-                                result.mistakes > 3
+                                result.mistakes >= (calculateMaxLives model meditation.text)
 
                             isComplete =
                                 result.position >= String.length meditation.text
@@ -377,6 +377,32 @@ calculateWPM model targetText =
                 0
 
 
+calculateMaxLives : Model -> String -> Int
+calculateMaxLives model targetText =
+    let
+        wordCount = 
+            targetText
+                |> String.words
+                |> List.length
+    in
+    Basics.max 1 (wordCount // 30)
+
+
+viewLives : Model -> String -> List (Html Msg)
+viewLives model targetText =
+    let
+        maxLives = calculateMaxLives model targetText
+        remainingLives = Basics.max 0 (maxLives - model.mistakes)
+    in
+    List.range 1 maxLives
+        |> List.map (\index ->
+            if index <= remainingLives then
+                span [ class "life-heart full" ] [ text "❤️" ]
+            else
+                span [ class "life-heart empty" ] [ text "🤍" ]
+           )
+
+
 view : Model -> Html Msg
 view model =
     div [ class "container" ]
@@ -409,11 +435,11 @@ viewTypingPractice model meditation =
                 [ viewTypingText meditation.text model.currentPosition model.correctedPositions ]
             ]
         , div [ class "stats" ]
-            [ div [ class "mistakes-display" ]
-                [ text ("실수: " ++ String.fromInt model.mistakes ++ "/3")
-                , if model.mistakes >= 3 then
-                    div [ class "mistake-warning" ]
-                        [ text "⚠️ 실수 한도 초과! 다음 오타 시 처음부터 다시 시작됩니다." ]
+            [ div [ class "lives" ]
+                [ div [ class "lives-display" ] (viewLives model meditation.text)
+                , if model.mistakes >= (calculateMaxLives model meditation.text) then
+                    div [ class "lives-warning" ]
+                        [ text "⚠️ 생명이 모두 소진되었습니다! 다음 오타 시 처음부터 다시 시작됩니다." ]
                   else
                     text ""
                 ]

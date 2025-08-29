@@ -6544,6 +6544,13 @@ var $elm$core$Task$attempt = F2(
 							$elm$core$Result$Ok),
 						task))));
 	});
+var $elm$core$String$words = _String_words;
+var $author$project$Main$calculateMaxLives = F2(
+	function (model, targetText) {
+		var wordCount = $elm$core$List$length(
+			$elm$core$String$words(targetText));
+		return A2($elm$core$Basics$max, 1, (wordCount / 30) | 0);
+	});
 var $elm$core$List$drop = F2(
 	function (n, list) {
 		drop:
@@ -6875,7 +6882,9 @@ var $author$project$Main$update = F2(
 											}
 										}
 									}();
-									var mistakeLimitExceeded = result.mistakes > 3;
+									var mistakeLimitExceeded = _Utils_cmp(
+										result.mistakes,
+										A2($author$project$Main$calculateMaxLives, model, meditation.text)) > -1;
 									var newStartTime = function () {
 										var _v3 = model.startTime;
 										if (_v3.$ === 'Nothing') {
@@ -6999,11 +7008,40 @@ var $elm$html$Html$Attributes$tabindex = function (n) {
 		'tabIndex',
 		$elm$core$String$fromInt(n));
 };
+var $elm$html$Html$span = _VirtualDom_node('span');
+var $author$project$Main$viewLives = F2(
+	function (model, targetText) {
+		var maxLives = A2($author$project$Main$calculateMaxLives, model, targetText);
+		var remainingLives = A2($elm$core$Basics$max, 0, maxLives - model.mistakes);
+		return A2(
+			$elm$core$List$map,
+			function (index) {
+				return (_Utils_cmp(index, remainingLives) < 1) ? A2(
+					$elm$html$Html$span,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('life-heart full')
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text('❤️')
+						])) : A2(
+					$elm$html$Html$span,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('life-heart empty')
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text('🤍')
+						]));
+			},
+			A2($elm$core$List$range, 1, maxLives));
+	});
 var $elm$core$String$cons = _String_cons;
 var $elm$core$String$fromChar = function (_char) {
 	return A2($elm$core$String$cons, _char, '');
 };
-var $elm$html$Html$span = _VirtualDom_node('span');
 var $elm$core$String$foldr = _String_foldr;
 var $elm$core$String$toList = function (string) {
 	return A3($elm$core$String$foldr, $elm$core$List$cons, _List_Nil, string);
@@ -7118,21 +7156,28 @@ var $author$project$Main$viewTypingPractice = F2(
 							$elm$html$Html$div,
 							_List_fromArray(
 								[
-									$elm$html$Html$Attributes$class('mistakes-display')
+									$elm$html$Html$Attributes$class('lives')
 								]),
 							_List_fromArray(
 								[
-									$elm$html$Html$text(
-									'실수: ' + ($elm$core$String$fromInt(model.mistakes) + '/3')),
-									(model.mistakes >= 3) ? A2(
+									A2(
 									$elm$html$Html$div,
 									_List_fromArray(
 										[
-											$elm$html$Html$Attributes$class('mistake-warning')
+											$elm$html$Html$Attributes$class('lives-display')
+										]),
+									A2($author$project$Main$viewLives, model, meditation.text)),
+									(_Utils_cmp(
+									model.mistakes,
+									A2($author$project$Main$calculateMaxLives, model, meditation.text)) > -1) ? A2(
+									$elm$html$Html$div,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$class('lives-warning')
 										]),
 									_List_fromArray(
 										[
-											$elm$html$Html$text('⚠️ 실수 한도 초과! 다음 오타 시 처음부터 다시 시작됩니다.')
+											$elm$html$Html$text('⚠️ 생명이 모두 소진되었습니다! 다음 오타 시 처음부터 다시 시작됩니다.')
 										])) : $elm$html$Html$text('')
 								]))
 						])),
