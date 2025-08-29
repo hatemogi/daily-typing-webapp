@@ -318,6 +318,17 @@ update msg model =
                                     Just time ->
                                         Just time
 
+                            -- Set session start time on first correct keystroke
+                            newSessionStartTime =
+                                case model.sessionStartTime of
+                                    Nothing ->
+                                        if result.position > model.currentPosition && model.sessionState == SessionActive then
+                                            Just model.currentTime
+                                        else
+                                            Nothing
+                                    Just time ->
+                                        Just time
+
                             newEndTime =
                                 if isComplete then
                                     Just model.currentTime
@@ -353,6 +364,7 @@ update msg model =
                                 , correctedPositions = result.correctedPositions
                                 , startTime = newStartTime
                                 , endTime = newEndTime
+                                , sessionStartTime = newSessionStartTime
                               }
                             , Cmd.none
                             )
@@ -401,7 +413,7 @@ update msg model =
         StartSession ->
             ( { model 
                 | sessionState = SessionActive
-                , sessionStartTime = Just model.currentTime
+                , sessionStartTime = Nothing  -- Will be set on first correct keystroke
                 , completedSessions = 0
               }
             , Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1))
@@ -648,7 +660,11 @@ viewSessionTimer model =
                 div [ class "session-active-compact" ]
                     [ div [ class "session-info-compact" ]
                         [ div [ class "session-time-compact" ]
-                            [ text ("⏱️ " ++ formatSessionTime (calculateSessionTimeLeft model)) ]
+                            [ text (
+                                case model.sessionStartTime of
+                                    Nothing -> "⏱️ " ++ formatSessionTime (calculateSessionTimeLeft model) ++ " (타이핑 시작 대기중)"
+                                    Just _ -> "⏱️ " ++ formatSessionTime (calculateSessionTimeLeft model)
+                            ) ]
                         , div [ class "session-completed-compact" ]
                             [ text ("✅ " ++ String.fromInt model.completedSessions ++ "개 완성") ]
                         , button [ onClick EndSession, class "btn-session-stop-compact" ] [ text "종료" ]
