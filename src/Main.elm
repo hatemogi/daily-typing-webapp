@@ -579,6 +579,21 @@ calculateConcentrationScore model =
             "0.0"
 
 
+calculateElapsedTime : Model -> String
+calculateElapsedTime model =
+    case (model.sessionStartTime, model.sessionEndTime) of
+        (Just startTime, Just endTime) ->
+            let
+                elapsedMillis = Time.posixToMillis endTime - Time.posixToMillis startTime
+                totalSeconds = elapsedMillis // 1000
+                minutes = totalSeconds // 60
+                seconds = modBy 60 totalSeconds
+            in
+            String.fromInt minutes ++ "분 " ++ String.fromInt seconds ++ "초"
+        _ ->
+            "0분 0초"
+
+
 viewLives : Model -> String -> List (Html Msg)
 viewLives model targetText =
     let
@@ -796,6 +811,8 @@ viewSessionTimer model =
                             , div [ class "score-display" ] [ text (String.fromInt model.sessionTotalScore ++ "점") ]
                             , div [ class "concentration-score" ] 
                                 [ text ("집중력: " ++ calculateConcentrationScore model ++ "점/분") ]
+                            , div [ class "elapsed-time" ]
+                                [ text ("소요시간: " ++ calculateElapsedTime model) ]
                             ]
                         , p [] [ text (String.fromInt model.selectedSessionDuration ++ "분 세션이 완료되었습니다!") ]
                         , div [ class "session-actions" ]
