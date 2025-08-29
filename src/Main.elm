@@ -60,7 +60,6 @@ type Msg
     = LoadMeditations (Result Http.Error (List Meditation))
     | SelectRandomMeditation Int
     | KeyPressed String
-    | StartOver
     | GotRandomIndex Int
     | Tick Time.Posix
     | FocusTypingArea
@@ -300,25 +299,32 @@ update msg model =
                                     model.endTime
                         in
                         if mistakeLimitExceeded then
-                            -- Reset when mistake limit exceeded, and end grace period if active
+                            -- Auto advance to next text when failed, and end grace period if active
                             let
                                 newSessionState = 
                                     if model.sessionState == SessionGracePeriod then
                                         SessionCompleted
                                     else
                                         model.sessionState
+                                
+                                shouldLoadNextText = model.sessionState == SessionActive
+                                
+                                updatedModel = 
+                                    { model
+                                        | userInput = ""
+                                        , currentPosition = 0
+                                        , mistakes = 0
+                                        , correctedPositions = []
+                                        , startTime = Nothing
+                                        , endTime = Nothing
+                                        , isComplete = False
+                                        , sessionState = newSessionState
+                                    }
                             in
-                            ( { model
-                                | userInput = ""
-                                , currentPosition = 0
-                                , mistakes = 0
-                                , correctedPositions = []
-                                , startTime = Nothing
-                                , endTime = Nothing
-                                , sessionState = newSessionState
-                              }
-                            , Cmd.none
-                            )
+                            if shouldLoadNextText then
+                                ( updatedModel, Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1)) )
+                            else
+                                ( updatedModel, Cmd.none )
                         else if isComplete then
                             -- Auto advance to next text when completed
                             let
@@ -369,18 +375,6 @@ update msg model =
                             , Cmd.none
                             )
 
-        StartOver ->
-            ( { model
-                | userInput = ""
-                , currentPosition = 0
-                , isComplete = False
-                , mistakes = 0
-                , correctedPositions = []
-                , startTime = Nothing
-                , endTime = Nothing
-              }
-            , Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1))
-            )
 
         Tick time ->
             let
@@ -615,11 +609,9 @@ viewTypingPractice model meditation =
                     , div [ class "final-accuracy" ]
                         [ text ("정확도: " ++ String.fromInt (calculateAccuracy model meditation.text) ++ "%") ]
                     ]
-                , button [ onClick StartOver, class "btn-primary" ] [ text "새로운 구절로 시작" ]
                 ]
           else
-            div [ class "controls" ]
-                [ button [ onClick StartOver, class "btn-secondary" ] [ text "다시 시작" ] ]
+            text ""  -- No restart button anymore
         ]
 
 
