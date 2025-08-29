@@ -562,6 +562,8 @@ view model =
             SessionGracePeriod ->
                 div []
                     [ viewSessionTimer model
+                    , div [ class "grace-period-message" ]
+                        [ text "⏰ 세션 시간이 종료되었습니다. 남은 기회동안 계속 입력해주세요!" ]
                     , case model.currentMeditation of
                         Nothing ->
                             div [ class "loading" ] [ text "명상록을 불러오는 중..." ]
