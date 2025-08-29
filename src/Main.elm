@@ -34,8 +34,21 @@ type alias Model =
     , startTime : Maybe Time.Posix
     , currentTime : Time.Posix
     , endTime : Maybe Time.Posix
+    , sessionState : SessionState
+    , sessionStartTime : Maybe Time.Posix
+    , selectedSessionDuration : Int  -- in minutes
+    , gracePeriodStartTime : Maybe Time.Posix
+    , textRetryCount : Int  -- Number of retries for current text
+    , sessionTotalScore : Int  -- Total score for current session
+    , lastTextScore : Int  -- Score for the last completed text
+    , sessionEndTime : Maybe Time.Posix  -- Actual session end time
     }
 
+type SessionState
+    = SessionNotStarted
+    | SessionActive
+    | SessionGracePeriod  -- New state for grace period
+    | SessionCompleted
 
 type alias Meditation =
     { id : String
@@ -50,10 +63,12 @@ type Msg
     = LoadMeditations (Result Http.Error (List Meditation))
     | SelectRandomMeditation Int
     | KeyPressed String
-    | StartOver
     | GotRandomIndex Int
     | Tick Time.Posix
     | FocusTypingArea
+    | StartSession
+    | EndSession
+    | SelectSessionDuration Int
 
 
 init : () -> ( Model, Cmd Msg )
@@ -68,6 +83,14 @@ init _ =
       , startTime = Nothing
       , currentTime = Time.millisToPosix 0
       , endTime = Nothing
+      , sessionState = SessionNotStarted
+      , sessionStartTime = Nothing
+      , selectedSessionDuration = 10  -- default 10 minutes
+      , gracePeriodStartTime = Nothing
+      , textRetryCount = 0
+      , sessionTotalScore = 0
+      , lastTextScore = 0
+      , sessionEndTime = Nothing
       }
     , loadMeditations
     )
@@ -136,21 +159,8 @@ update msg model =
                     ( model, Cmd.none )
 
                 Just meditation ->
-                    if model.isComplete && key == "Enter" then
-                        -- Start next text when Enter is pressed after completion
-                        ( { model
-                            | userInput = ""
-                            , currentPosition = 0
-                            , isComplete = False
-                            , mistakes = 0
-                            , correctedPositions = []
-                            , startTime = Nothing
-                            , endTime = Nothing
-                          }
-                        , Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1))
-                        )
-                    else if model.isComplete then
-                        -- Ignore other keys when completed
+                    if model.isComplete then
+                        -- Ignore all keys when completed (auto-advance already handled)
                         ( model, Cmd.none )
                     else if isModifierKey key then
                         -- Ignore modifier keys
@@ -277,6 +287,17 @@ update msg model =
                                     Just time ->
                                         Just time
 
+                            -- Set session start time on first correct keystroke
+                            newSessionStartTime =
+                                case model.sessionStartTime of
+                                    Nothing ->
+                                        if result.position > model.currentPosition && model.sessionState == SessionActive then
+                                            Just model.currentTime
+                                        else
+                                            Nothing
+                                    Just time ->
+                                        Just time
+
                             newEndTime =
                                 if isComplete then
                                     Just model.currentTime
@@ -284,17 +305,90 @@ update msg model =
                                     model.endTime
                         in
                         if mistakeLimitExceeded then
-                            -- Reset when mistake limit exceeded
-                            ( { model
-                                | userInput = ""
-                                , currentPosition = 0
-                                , mistakes = 0
-                                , correctedPositions = []
-                                , startTime = Nothing
-                                , endTime = Nothing
-                              }
-                            , Cmd.none
-                            )
+                            -- Retry system: reset with full hearts or advance to next text after 3 retries
+                            let
+                                newRetryCount = model.textRetryCount + 1
+                                
+                                newSessionState = 
+                                    if model.sessionState == SessionGracePeriod then
+                                        SessionCompleted
+                                    else
+                                        model.sessionState
+                                
+                                newSessionEndTime = 
+                                    if model.sessionState == SessionGracePeriod then
+                                        Just model.currentTime
+                                    else
+                                        model.sessionEndTime
+                                
+                                shouldLoadNextText = 
+                                    (model.sessionState == SessionActive) && (newRetryCount > 3)
+                                
+                                updatedModel = 
+                                    { model
+                                        | userInput = ""
+                                        , currentPosition = 0
+                                        , mistakes = 0
+                                        , correctedPositions = []
+                                        , startTime = Nothing
+                                        , endTime = Nothing
+                                        , isComplete = False
+                                        , sessionState = newSessionState
+                                        , textRetryCount = if shouldLoadNextText then 0 else newRetryCount
+                                        , sessionEndTime = newSessionEndTime
+                                    }
+                            in
+                            if shouldLoadNextText then
+                                ( updatedModel, Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1)) )
+                            else
+                                ( updatedModel, Cmd.none )
+                        else if isComplete then
+                            -- Auto advance to next text when completed
+                            let                                
+                                -- Calculate score for completed text
+                                textScore = calculateTextScore meditation.text result.mistakes model.textRetryCount
+                                newTotalScore = 
+                                    if model.sessionState == SessionActive || model.sessionState == SessionGracePeriod then
+                                        model.sessionTotalScore + textScore
+                                    else
+                                        model.sessionTotalScore
+                                
+                                -- End session when text is completed during grace period
+                                newSessionState =
+                                    if model.sessionState == SessionGracePeriod then
+                                        SessionCompleted
+                                    else
+                                        model.sessionState
+                                
+                                newSessionEndTime = 
+                                    if model.sessionState == SessionGracePeriod then
+                                        Just model.currentTime
+                                    else
+                                        model.sessionEndTime
+                            in
+                            let
+                                shouldLoadNextText = model.sessionState == SessionActive
+                                
+                                updatedModel = 
+                                    { model
+                                        | userInput = ""
+                                        , currentPosition = 0
+                                        , isComplete = False
+                                        , mistakes = 0
+                                        , correctedPositions = []
+                                        , startTime = Nothing
+                                        , endTime = Nothing
+                                        , sessionState = newSessionState
+                                        , textRetryCount = 0  -- Reset retry count on success
+                                        , sessionTotalScore = newTotalScore
+                                        , lastTextScore = textScore
+                                        , sessionEndTime = newSessionEndTime
+                                    }
+                            in
+                            if shouldLoadNextText then
+                                ( updatedModel, Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1)) )
+                            else
+                                ( updatedModel, Cmd.none )
                         else
                             ( { model
                                 | userInput = result.userInput
@@ -304,25 +398,72 @@ update msg model =
                                 , correctedPositions = result.correctedPositions
                                 , startTime = newStartTime
                                 , endTime = newEndTime
+                                , sessionStartTime = newSessionStartTime
                               }
                             , Cmd.none
                             )
 
-        StartOver ->
-            ( { model
-                | userInput = ""
-                , currentPosition = 0
-                , isComplete = False
-                , mistakes = 0
-                , correctedPositions = []
-                , startTime = Nothing
-                , endTime = Nothing
+
+        Tick time ->
+            let
+                updatedModel = { model | currentTime = time }
+                
+                -- Check if session should end and start grace period
+                sessionShouldEnd = 
+                    case (model.sessionState, model.sessionStartTime) of
+                        (SessionActive, Just startTime) ->
+                            let
+                                durationMillis = model.selectedSessionDuration * 60 * 1000
+                            in
+                            Time.posixToMillis time - Time.posixToMillis startTime >= durationMillis
+                        _ ->
+                            False
+                
+            in
+            if sessionShouldEnd && not model.isComplete && model.currentPosition > 0 then
+                -- Start grace period only if actively typing (currentPosition > 0)
+                ( { updatedModel 
+                    | sessionState = SessionGracePeriod
+                    , gracePeriodStartTime = Just time
+                  }, Task.attempt (\_ -> FocusTypingArea) (Dom.focus "typing-area") )
+            else if sessionShouldEnd then
+                -- End session immediately if text is complete or no typing started
+                ( { updatedModel 
+                    | sessionState = SessionCompleted 
+                    , sessionEndTime = Just time
+                  }, Cmd.none )
+            else
+                ( updatedModel, Cmd.none )
+
+        StartSession ->
+            ( { model 
+                | sessionState = SessionActive
+                , sessionStartTime = Nothing  -- Will be set on first correct keystroke
+                , textRetryCount = 0  -- Reset retry count for new session
+                , sessionTotalScore = 0  -- Reset score for new session
+                , lastTextScore = 0
+                , sessionEndTime = Nothing
               }
             , Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1))
             )
 
-        Tick time ->
-            ( { model | currentTime = time }, Cmd.none )
+        EndSession ->
+            ( { model 
+                | sessionState = SessionNotStarted
+                , sessionStartTime = Nothing
+                , gracePeriodStartTime = Nothing
+                , textRetryCount = 0
+                , sessionTotalScore = 0
+                , lastTextScore = 0
+                , sessionEndTime = Nothing
+              }
+            , Cmd.none
+            )
+
+        SelectSessionDuration minutes ->
+            ( { model | selectedSessionDuration = minutes }
+            , Cmd.none
+            )
 
 
 
@@ -388,6 +529,71 @@ calculateMaxLives model targetText =
     3 + (wordCount // 30)
 
 
+calculateTextScore : String -> Int -> Int -> Int
+calculateTextScore text mistakes retryCount =
+    let
+        wordCount = 
+            text
+                |> String.words
+                |> List.length
+        
+        baseScore = wordCount * 10
+        
+        -- Accuracy multiplier based on mistakes
+        accuracyMultiplier =
+            case mistakes of
+                0 -> 2.0    -- Perfect: 100% bonus (2x)
+                1 -> 1.5    -- 1 mistake: 50% bonus
+                2 -> 1.25   -- 2 mistakes: 25% bonus
+                _ -> 1.0    -- 3+ mistakes: no bonus
+        
+        -- Retry penalty multiplier
+        retryMultiplier =
+            case retryCount of
+                0 -> 1.0    -- No retries
+                1 -> 0.8    -- 1 retry: -20%
+                2 -> 0.6    -- 2 retries: -40%
+                _ -> 0.4    -- 3+ retries: -60%
+        
+        finalScore = 
+            toFloat baseScore 
+                * accuracyMultiplier 
+                * retryMultiplier
+                |> round
+    in
+    Basics.max 0 finalScore
+
+
+calculateConcentrationScore : Model -> String
+calculateConcentrationScore model =
+    case (model.sessionStartTime, model.sessionEndTime) of
+        (Just startTime, Just endTime) ->
+            let
+                elapsedMillis = Time.posixToMillis endTime - Time.posixToMillis startTime
+                elapsedMinutes = toFloat elapsedMillis / (1000 * 60)  -- Convert to minutes
+                pointsPerMinute = toFloat model.sessionTotalScore / elapsedMinutes
+                rounded = (pointsPerMinute * 10) |> round |> toFloat |> (\x -> x / 10)  -- Round to 1 decimal
+            in
+            String.fromFloat rounded
+        _ ->
+            "0.0"
+
+
+calculateElapsedTime : Model -> String
+calculateElapsedTime model =
+    case (model.sessionStartTime, model.sessionEndTime) of
+        (Just startTime, Just endTime) ->
+            let
+                elapsedMillis = Time.posixToMillis endTime - Time.posixToMillis startTime
+                totalSeconds = elapsedMillis // 1000
+                minutes = totalSeconds // 60
+                seconds = modBy 60 totalSeconds
+            in
+            String.fromInt minutes ++ "분 " ++ String.fromInt seconds ++ "초"
+        _ ->
+            "0분 0초"
+
+
 viewLives : Model -> String -> List (Html Msg)
 viewLives model targetText =
     let
@@ -397,10 +603,43 @@ viewLives model targetText =
     List.range 1 maxLives
         |> List.map (\index ->
             if index <= remainingLives then
-                span [ class "life-heart full" ] [ text "❤️" ]
+                let
+                    heartClass = 
+                        if remainingLives == 1 then
+                            "life-heart danger"  -- Last heart - danger state
+                        else
+                            "life-heart full"
+                in
+                span [ class heartClass ] [ text "❤️" ]
             else
                 span [ class "life-heart empty" ] [ text "🤍" ]
            )
+
+
+calculateSessionTimeLeft : Model -> Int
+calculateSessionTimeLeft model =
+    case (model.sessionState, model.sessionStartTime) of
+        (SessionActive, Just startTime) ->
+            let
+                durationMillis = model.selectedSessionDuration * 60 * 1000
+                elapsed = Time.posixToMillis model.currentTime - Time.posixToMillis startTime
+                remaining = Basics.max 0 (durationMillis - elapsed)
+            in
+            remaining // 1000  -- Convert to seconds
+        (SessionActive, Nothing) ->
+            model.selectedSessionDuration * 60  -- Full time when not started
+        _ ->
+            model.selectedSessionDuration * 60  -- selected duration in seconds
+
+
+formatSessionTime : Int -> String
+formatSessionTime totalSeconds =
+    let
+        minutes = totalSeconds // 60
+        seconds = modBy 60 totalSeconds
+    in
+    String.padLeft 2 '0' (String.fromInt minutes) ++ ":" ++ String.padLeft 2 '0' (String.fromInt seconds)
+
 
 
 view : Model -> Html Msg
@@ -408,40 +647,81 @@ view model =
     div [ class "container" ]
         [ h1 [ class "title" ] [ text "Daily Typing Practice" ]
         , h2 [ class "subtitle" ] [ text "명상록으로 하루를 시작하세요" ]
-        , case model.currentMeditation of
-            Nothing ->
-                div [ class "loading" ] [ text "명상록을 불러오는 중..." ]
+        , case model.sessionState of
+            SessionNotStarted ->
+                viewSessionTimer model
             
-            Just meditation ->
-                viewTypingPractice model meditation
+            SessionActive ->
+                div []
+                    [ viewSessionTimer model
+                    , case model.currentMeditation of
+                        Nothing ->
+                            div [ class "loading" ] [ text "명상록을 불러오는 중..." ]
+                        
+                        Just meditation ->
+                            viewTypingPractice model meditation
+                    ]
+            
+            SessionGracePeriod ->
+                div []
+                    [ viewSessionTimer model
+                    , div [ class "grace-period-message" ]
+                        [ text "⏰ 세션 시간이 종료되었습니다. 남은 기회동안 계속 입력해주세요!" ]
+                    , case model.currentMeditation of
+                        Nothing ->
+                            div [ class "loading" ] [ text "명상록을 불러오는 중..." ]
+                        
+                        Just meditation ->
+                            viewTypingPractice model meditation
+                    ]
+            
+            SessionCompleted ->
+                viewSessionTimer model
         ]
 
 
 
 viewTypingPractice : Model -> Meditation -> Html Msg
 viewTypingPractice model meditation =
+    let
+        maxLives = calculateMaxLives model meditation.text
+        remainingLives = Basics.max 0 (maxLives - model.mistakes)
+        isDangerState = remainingLives == 1
+        
+        typingAreaClass = 
+            if isDangerState then
+                "typing-area danger"
+            else
+                "typing-area"
+                
+        targetTextClass =
+            if isDangerState then
+                "target-text danger"
+            else
+                "target-text"
+    in
     div [ class "practice-area" ]
-        [ div [ class "meditation-info" ]
-            [ h3 [] [ text meditation.author ]
-            , p [ class "source" ] [ text meditation.source ]
-            ]
-        , div [ class "typing-area" ]
-            [ div 
-                [ class "target-text"
+        [ div [ class typingAreaClass ]
+            [ viewSessionProgressBar model
+            , div 
+                [ class targetTextClass
                 , tabindex 0
                 , id "typing-area"
                 , on "keydown" (Json.map KeyPressed (Json.field "key" Json.string))
                 ]
                 [ viewTypingText meditation.text model.currentPosition model.correctedPositions ]
-            ]
-        , div [ class "stats" ]
-            [ div [ class "lives" ]
-                [ div [ class "lives-display" ] (viewLives model meditation.text)
+            , div [ class "text-lives" ]
+                [ div [ class "lives-label" ] [ text "이 지문 도전 기회:" ]
+                , div [ class "lives-display" ] (viewLives model meditation.text)
                 , if model.mistakes >= (calculateMaxLives model meditation.text) then
                     div [ class "lives-warning" ]
-                        [ text "⚠️ 생명이 모두 소진되었습니다! 다음 오타 시 처음부터 다시 시작됩니다." ]
+                        [ text "⚠️ 기회를 모두 사용했습니다! 다음 오타 시 처음부터 다시 시작됩니다." ]
                   else
                     text ""
+                ]
+            , div [ class "meditation-info-small" ]
+                [ span [ class "author-small" ] [ text meditation.author ]
+                , span [ class "source-small" ] [ text (" · " ++ meditation.source) ]
                 ]
             ]
         , if model.isComplete then
@@ -455,13 +735,118 @@ viewTypingPractice model meditation =
                     , div [ class "final-accuracy" ]
                         [ text ("정확도: " ++ String.fromInt (calculateAccuracy model meditation.text) ++ "%") ]
                     ]
-                , button [ onClick StartOver, class "btn-primary" ] [ text "새로운 구절로 시작" ]
                 ]
           else
-            div [ class "controls" ]
-                [ button [ onClick StartOver, class "btn-secondary" ] [ text "다시 시작" ] ]
+            text ""  -- No restart button anymore
         ]
 
+
+viewSessionTimer : Model -> Html Msg
+viewSessionTimer model =
+    div [ class "session-timer" ]
+        [ case model.sessionState of
+            SessionNotStarted ->
+                div [ class "session-start" ]
+                    [ h3 [] [ text "⏱️ 세션 타이머" ]
+                    , p [] [ text "집중 세션을 시작해보세요!" ]
+                    , div [ class "duration-selector" ]
+                        [ h4 [] [ text "세션 시간 선택:" ]
+                        , div [ class "duration-buttons" ]
+                            [ button 
+                                [ onClick (SelectSessionDuration 1)
+                                , class (if model.selectedSessionDuration == 1 then "btn-duration active" else "btn-duration")
+                                ] 
+                                [ text "1분" ]
+                            , button 
+                                [ onClick (SelectSessionDuration 5)
+                                , class (if model.selectedSessionDuration == 5 then "btn-duration active" else "btn-duration")
+                                ] 
+                                [ text "5분" ]
+                            , button 
+                                [ onClick (SelectSessionDuration 10)
+                                , class (if model.selectedSessionDuration == 10 then "btn-duration active" else "btn-duration")
+                                ] 
+                                [ text "10분" ]
+                            , button 
+                                [ onClick (SelectSessionDuration 15)
+                                , class (if model.selectedSessionDuration == 15 then "btn-duration active" else "btn-duration")
+                                ] 
+                                [ text "15분" ]
+                            ]
+                        ]
+                    , button [ onClick StartSession, class "btn-session-start" ] 
+                        [ text (String.fromInt model.selectedSessionDuration ++ "분 세션 시작") ]
+                    ]
+            
+            SessionActive ->
+                div [ class "session-active-compact" ]
+                    [ div [ class "session-info-compact" ]
+                        [ div [ class "session-time-compact" ]
+                            [ text (
+                                case model.sessionStartTime of
+                                    Nothing -> "⏱️ " ++ formatSessionTime (calculateSessionTimeLeft model) ++ " (타이핑 시작 대기중)"
+                                    Just _ -> "⏱️ " ++ formatSessionTime (calculateSessionTimeLeft model)
+                            ) ]
+                        , div [ class "session-score-compact" ]
+                            [ text ("🎯 " ++ String.fromInt model.sessionTotalScore ++ "점") ]
+                        , if model.lastTextScore > 0 then
+                            div [ class "last-text-score-compact" ]
+                                [ text ("직전: +" ++ String.fromInt model.lastTextScore ++ "점") ]
+                          else
+                            text ""
+                        , button [ onClick EndSession, class "btn-session-stop-compact" ] [ text "종료" ]
+                        ]
+                    ]
+            
+            SessionGracePeriod ->
+                -- Don't show timer during grace period
+                text ""
+            
+            SessionCompleted ->
+                div [ class "session-completed" ]
+                    [ h3 [] [ text "🎉 세션 완료!" ]
+                    , div [ class "session-results" ]
+                        [ div [ class "final-score" ]
+                            [ h2 [] [ text "최종 점수" ]
+                            , div [ class "score-display" ] [ text (String.fromInt model.sessionTotalScore ++ "점") ]
+                            , div [ class "concentration-score" ] 
+                                [ text ("집중력: " ++ calculateConcentrationScore model ++ "점/분") ]
+                            , div [ class "elapsed-time" ]
+                                [ text ("소요시간: " ++ calculateElapsedTime model) ]
+                            ]
+                        , p [] [ text (String.fromInt model.selectedSessionDuration ++ "분 세션이 완료되었습니다!") ]
+                        , div [ class "session-actions" ]
+                            [ button [ onClick StartSession, class "btn-session-start" ] [ text "새 세션 시작" ]
+                            , button [ onClick EndSession, class "btn-session-stop" ] [ text "종료" ]
+                            ]
+                        ]
+                    ]
+        ]
+
+
+viewSessionProgressBar : Model -> Html Msg
+viewSessionProgressBar model =
+    case model.sessionState of
+        SessionActive ->
+            let
+                timeLeft = calculateSessionTimeLeft model
+                totalTime = model.selectedSessionDuration * 60
+                -- Keep 100% when session hasn't started yet
+                remainingPercentage = 
+                    case model.sessionStartTime of
+                        Nothing -> 100.0
+                        Just _ -> (toFloat timeLeft / toFloat totalTime) * 100
+                
+                progressStyle =
+                    style "width" (String.fromFloat remainingPercentage ++ "%")
+            in
+            div [ class "session-progress-container" ]
+                [ div [ class "session-progress-bar" ]
+                    [ div [ class "session-progress-fill", progressStyle ] []
+                    ]
+                ]
+        _ ->
+            text ""
 
 
 viewTypingText : String -> Int -> List Int -> Html Msg
