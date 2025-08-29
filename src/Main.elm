@@ -163,26 +163,33 @@ update msg model =
                                 else
                                     model.completedSessions
                             
-                            -- End grace period when text is completed
+                            -- End session when text is completed during grace period
                             newSessionState =
                                 if model.sessionState == SessionGracePeriod then
                                     SessionCompleted
                                 else
                                     model.sessionState
                         in
-                        ( { model
-                            | userInput = ""
-                            , currentPosition = 0
-                            , isComplete = False
-                            , mistakes = 0
-                            , correctedPositions = []
-                            , startTime = Nothing
-                            , endTime = Nothing
-                            , completedSessions = newCompletedSessions
-                            , sessionState = newSessionState
-                          }
-                        , Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1))
-                        )
+                        let
+                            shouldLoadNextText = model.sessionState == SessionActive
+                            
+                            updatedModel = 
+                                { model
+                                    | userInput = ""
+                                    , currentPosition = 0
+                                    , isComplete = False
+                                    , mistakes = 0
+                                    , correctedPositions = []
+                                    , startTime = Nothing
+                                    , endTime = Nothing
+                                    , completedSessions = newCompletedSessions
+                                    , sessionState = newSessionState
+                                }
+                        in
+                        if shouldLoadNextText then
+                            ( updatedModel, Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1)) )
+                        else
+                            ( updatedModel, Cmd.none )
                     else if model.isComplete then
                         -- Ignore other keys when completed
                         ( model, Cmd.none )
@@ -378,23 +385,13 @@ update msg model =
                         _ ->
                             False
                 
-                -- Check if grace period should end (2 minutes = 120000 milliseconds)
-                gracePeriodShouldEnd =
-                    case (model.sessionState, model.gracePeriodStartTime) of
-                        (SessionGracePeriod, Just graceStartTime) ->
-                            Time.posixToMillis time - Time.posixToMillis graceStartTime >= 120000
-                        _ ->
-                            False
             in
             if sessionShouldEnd && not model.isComplete then
-                -- Start grace period if text is not complete
+                -- Start grace period if text is not complete (silent mode)
                 ( { updatedModel 
                     | sessionState = SessionGracePeriod
                     , gracePeriodStartTime = Just time
                   }, Cmd.none )
-            else if gracePeriodShouldEnd then
-                -- End grace period
-                ( { updatedModel | sessionState = SessionCompleted }, Cmd.none )
             else if sessionShouldEnd && model.isComplete then
                 -- End session immediately if text is complete
                 ( { updatedModel | sessionState = SessionCompleted }, Cmd.none )
@@ -527,18 +524,6 @@ formatSessionTime totalSeconds =
     String.padLeft 2 '0' (String.fromInt minutes) ++ ":" ++ String.padLeft 2 '0' (String.fromInt seconds)
 
 
-calculateGracePeriodTimeLeft : Model -> Int
-calculateGracePeriodTimeLeft model =
-    case (model.sessionState, model.gracePeriodStartTime) of
-        (SessionGracePeriod, Just startTime) ->
-            let
-                elapsed = Time.posixToMillis model.currentTime - Time.posixToMillis startTime
-                remaining = Basics.max 0 (120000 - elapsed)  -- 2 minutes in milliseconds
-            in
-            remaining // 1000  -- Convert to seconds
-        _ ->
-            120  -- 2 minutes in seconds
-
 
 view : Model -> Html Msg
 view model =
@@ -562,10 +547,9 @@ view model =
             
             SessionGracePeriod ->
                 div []
-                    [ viewSessionTimer model
-                    , case model.currentMeditation of
+                    [ case model.currentMeditation of
                         Nothing ->
-                            div [ class "loading" ] [ text "명상록을 불러오는 중..." ]
+                            viewSessionTimer model
                         
                         Just meditation ->
                             viewTypingPractice model meditation
@@ -671,17 +655,8 @@ viewSessionTimer model =
                     ]
             
             SessionGracePeriod ->
-                div [ class "session-grace-period" ]
-                    [ div [ class "session-info-compact" ]
-                        [ div [ class "grace-period-message" ]
-                            [ text "⏰ 여유시간" ]
-                        , div [ class "session-time-compact" ]
-                            [ text ("남은 시간: " ++ formatSessionTime (calculateGracePeriodTimeLeft model)) ]
-                        , div [ class "session-completed-compact" ]
-                            [ text ("✅ " ++ String.fromInt model.completedSessions ++ "개 완성") ]
-                        , button [ onClick EndSession, class "btn-session-stop-compact" ] [ text "종료" ]
-                        ]
-                    ]
+                -- Don't show timer during grace period
+                text ""
             
             SessionCompleted ->
                 div [ class "session-completed" ]
