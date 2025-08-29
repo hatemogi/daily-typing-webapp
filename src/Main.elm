@@ -510,7 +510,14 @@ viewLives model targetText =
     List.range 1 maxLives
         |> List.map (\index ->
             if index <= remainingLives then
-                span [ class "life-heart full" ] [ text "❤️" ]
+                let
+                    heartClass = 
+                        if remainingLives == 1 then
+                            "life-heart danger"  -- Last heart - danger state
+                        else
+                            "life-heart full"
+                in
+                span [ class heartClass ] [ text "❤️" ]
             else
                 span [ class "life-heart empty" ] [ text "🤍" ]
            )
@@ -583,11 +590,28 @@ view model =
 
 viewTypingPractice : Model -> Meditation -> Html Msg
 viewTypingPractice model meditation =
+    let
+        maxLives = calculateMaxLives model meditation.text
+        remainingLives = Basics.max 0 (maxLives - model.mistakes)
+        isDangerState = remainingLives == 1
+        
+        typingAreaClass = 
+            if isDangerState then
+                "typing-area danger"
+            else
+                "typing-area"
+                
+        targetTextClass =
+            if isDangerState then
+                "target-text danger"
+            else
+                "target-text"
+    in
     div [ class "practice-area" ]
-        [ div [ class "typing-area" ]
+        [ div [ class typingAreaClass ]
             [ viewSessionProgressBar model
             , div 
-                [ class "target-text"
+                [ class targetTextClass
                 , tabindex 0
                 , id "typing-area"
                 , on "keydown" (Json.map KeyPressed (Json.field "key" Json.string))
