@@ -41,6 +41,7 @@ type alias Model =
     , textRetryCount : Int  -- Number of retries for current text
     , sessionTotalScore : Int  -- Total score for current session
     , lastTextScore : Int  -- Score for the last completed text
+    , sessionEndTime : Maybe Time.Posix  -- Actual session end time
     }
 
 type SessionState
@@ -89,6 +90,7 @@ init _ =
       , textRetryCount = 0
       , sessionTotalScore = 0
       , lastTextScore = 0
+      , sessionEndTime = Nothing
       }
     , loadMeditations
     )
@@ -313,6 +315,12 @@ update msg model =
                                     else
                                         model.sessionState
                                 
+                                newSessionEndTime = 
+                                    if model.sessionState == SessionGracePeriod then
+                                        Just model.currentTime
+                                    else
+                                        model.sessionEndTime
+                                
                                 shouldLoadNextText = 
                                     (model.sessionState == SessionActive) && (newRetryCount > 3)
                                 
@@ -327,6 +335,7 @@ update msg model =
                                         , isComplete = False
                                         , sessionState = newSessionState
                                         , textRetryCount = if shouldLoadNextText then 0 else newRetryCount
+                                        , sessionEndTime = newSessionEndTime
                                     }
                             in
                             if shouldLoadNextText then
@@ -350,6 +359,12 @@ update msg model =
                                         SessionCompleted
                                     else
                                         model.sessionState
+                                
+                                newSessionEndTime = 
+                                    if model.sessionState == SessionGracePeriod then
+                                        Just model.currentTime
+                                    else
+                                        model.sessionEndTime
                             in
                             let
                                 shouldLoadNextText = model.sessionState == SessionActive
@@ -367,6 +382,7 @@ update msg model =
                                         , textRetryCount = 0  -- Reset retry count on success
                                         , sessionTotalScore = newTotalScore
                                         , lastTextScore = textScore
+                                        , sessionEndTime = newSessionEndTime
                                     }
                             in
                             if shouldLoadNextText then
@@ -412,7 +428,10 @@ update msg model =
                   }, Task.attempt (\_ -> FocusTypingArea) (Dom.focus "typing-area") )
             else if sessionShouldEnd then
                 -- End session immediately if text is complete or no typing started
-                ( { updatedModel | sessionState = SessionCompleted }, Cmd.none )
+                ( { updatedModel 
+                    | sessionState = SessionCompleted 
+                    , sessionEndTime = Just time
+                  }, Cmd.none )
             else
                 ( updatedModel, Cmd.none )
 
@@ -423,6 +442,7 @@ update msg model =
                 , textRetryCount = 0  -- Reset retry count for new session
                 , sessionTotalScore = 0  -- Reset score for new session
                 , lastTextScore = 0
+                , sessionEndTime = Nothing
               }
             , Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1))
             )
@@ -435,6 +455,7 @@ update msg model =
                 , textRetryCount = 0
                 , sessionTotalScore = 0
                 , lastTextScore = 0
+                , sessionEndTime = Nothing
               }
             , Cmd.none
             )
@@ -541,6 +562,21 @@ calculateTextScore text mistakes retryCount =
                 |> round
     in
     Basics.max 0 finalScore
+
+
+calculateConcentrationScore : Model -> String
+calculateConcentrationScore model =
+    case (model.sessionStartTime, model.sessionEndTime) of
+        (Just startTime, Just endTime) ->
+            let
+                elapsedMillis = Time.posixToMillis endTime - Time.posixToMillis startTime
+                elapsedMinutes = toFloat elapsedMillis / (1000 * 60)  -- Convert to minutes
+                pointsPerMinute = toFloat model.sessionTotalScore / elapsedMinutes
+                rounded = (pointsPerMinute * 10) |> round |> toFloat |> (\x -> x / 10)  -- Round to 1 decimal
+            in
+            String.fromFloat rounded
+        _ ->
+            "0.0"
 
 
 viewLives : Model -> String -> List (Html Msg)
@@ -758,6 +794,8 @@ viewSessionTimer model =
                         [ div [ class "final-score" ]
                             [ h2 [] [ text "최종 점수" ]
                             , div [ class "score-display" ] [ text (String.fromInt model.sessionTotalScore ++ "점") ]
+                            , div [ class "concentration-score" ] 
+                                [ text ("집중력: " ++ calculateConcentrationScore model ++ "점/분") ]
                             ]
                         , p [] [ text (String.fromInt model.selectedSessionDuration ++ "분 세션이 완료되었습니다!") ]
                         , div [ class "session-actions" ]
