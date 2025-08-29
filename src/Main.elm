@@ -518,11 +518,7 @@ view model =
 viewTypingPractice : Model -> Meditation -> Html Msg
 viewTypingPractice model meditation =
     div [ class "practice-area" ]
-        [ div [ class "meditation-info" ]
-            [ h3 [] [ text meditation.author ]
-            , p [ class "source" ] [ text meditation.source ]
-            ]
-        , div [ class "typing-area" ]
+        [ div [ class "typing-area" ]
             [ viewSessionProgressBar model
             , div 
                 [ class "target-text"
@@ -539,6 +535,10 @@ viewTypingPractice model meditation =
                         [ text "⚠️ 기회를 모두 사용했습니다! 다음 오타 시 처음부터 다시 시작됩니다." ]
                   else
                     text ""
+                ]
+            , div [ class "meditation-info-small" ]
+                [ span [ class "author-small" ] [ text meditation.author ]
+                , span [ class "source-small" ] [ text (" · " ++ meditation.source) ]
                 ]
             ]
         , if model.isComplete then

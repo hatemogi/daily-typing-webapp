@@ -7348,13 +7348,13 @@ var $author$project$Main$calculateWPM = F2(
 		}
 	});
 var $elm$html$Html$Attributes$id = $elm$html$Html$Attributes$stringProperty('id');
+var $elm$html$Html$span = _VirtualDom_node('span');
 var $elm$html$Html$Attributes$tabindex = function (n) {
 	return A2(
 		_VirtualDom_attribute,
 		'tabIndex',
 		$elm$core$String$fromInt(n));
 };
-var $elm$html$Html$span = _VirtualDom_node('span');
 var $author$project$Main$viewLives = F2(
 	function (model, targetText) {
 		var maxLives = A2($author$project$Main$calculateMaxLives, model, targetText);
@@ -7479,32 +7479,6 @@ var $author$project$Main$viewTypingPractice = F2(
 					$elm$html$Html$div,
 					_List_fromArray(
 						[
-							$elm$html$Html$Attributes$class('meditation-info')
-						]),
-					_List_fromArray(
-						[
-							A2(
-							$elm$html$Html$h3,
-							_List_Nil,
-							_List_fromArray(
-								[
-									$elm$html$Html$text(meditation.author)
-								])),
-							A2(
-							$elm$html$Html$p,
-							_List_fromArray(
-								[
-									$elm$html$Html$Attributes$class('source')
-								]),
-							_List_fromArray(
-								[
-									$elm$html$Html$text(meditation.source)
-								]))
-						])),
-					A2(
-					$elm$html$Html$div,
-					_List_fromArray(
-						[
 							$elm$html$Html$Attributes$class('typing-area')
 						]),
 					_List_fromArray(
@@ -7566,6 +7540,35 @@ var $author$project$Main$viewTypingPractice = F2(
 										[
 											$elm$html$Html$text('⚠️ 기회를 모두 사용했습니다! 다음 오타 시 처음부터 다시 시작됩니다.')
 										])) : $elm$html$Html$text('')
+								])),
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('meditation-info-small')
+								]),
+							_List_fromArray(
+								[
+									A2(
+									$elm$html$Html$span,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$class('author-small')
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text(meditation.author)
+										])),
+									A2(
+									$elm$html$Html$span,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$class('source-small')
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text(' · ' + meditation.source)
+										]))
 								]))
 						])),
 					model.isComplete ? A2(
