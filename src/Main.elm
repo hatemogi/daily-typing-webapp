@@ -154,44 +154,8 @@ update msg model =
                     ( model, Cmd.none )
 
                 Just meditation ->
-                    if model.isComplete && key == "Enter" then
-                        -- Start next text when Enter is pressed after completion
-                        let
-                            newCompletedSessions =
-                                if model.sessionState == SessionActive || model.sessionState == SessionGracePeriod then
-                                    model.completedSessions + 1
-                                else
-                                    model.completedSessions
-                            
-                            -- End session when text is completed during grace period
-                            newSessionState =
-                                if model.sessionState == SessionGracePeriod then
-                                    SessionCompleted
-                                else
-                                    model.sessionState
-                        in
-                        let
-                            shouldLoadNextText = model.sessionState == SessionActive
-                            
-                            updatedModel = 
-                                { model
-                                    | userInput = ""
-                                    , currentPosition = 0
-                                    , isComplete = False
-                                    , mistakes = 0
-                                    , correctedPositions = []
-                                    , startTime = Nothing
-                                    , endTime = Nothing
-                                    , completedSessions = newCompletedSessions
-                                    , sessionState = newSessionState
-                                }
-                        in
-                        if shouldLoadNextText then
-                            ( updatedModel, Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1)) )
-                        else
-                            ( updatedModel, Cmd.none )
-                    else if model.isComplete then
-                        -- Ignore other keys when completed
+                    if model.isComplete then
+                        -- Ignore all keys when completed (auto-advance already handled)
                         ( model, Cmd.none )
                     else if isModifierKey key then
                         -- Ignore modifier keys
@@ -355,6 +319,42 @@ update msg model =
                               }
                             , Cmd.none
                             )
+                        else if isComplete then
+                            -- Auto advance to next text when completed
+                            let
+                                newCompletedSessions =
+                                    if model.sessionState == SessionActive || model.sessionState == SessionGracePeriod then
+                                        model.completedSessions + 1
+                                    else
+                                        model.completedSessions
+                                
+                                -- End session when text is completed during grace period
+                                newSessionState =
+                                    if model.sessionState == SessionGracePeriod then
+                                        SessionCompleted
+                                    else
+                                        model.sessionState
+                            in
+                            let
+                                shouldLoadNextText = model.sessionState == SessionActive
+                                
+                                updatedModel = 
+                                    { model
+                                        | userInput = ""
+                                        , currentPosition = 0
+                                        , isComplete = False
+                                        , mistakes = 0
+                                        , correctedPositions = []
+                                        , startTime = Nothing
+                                        , endTime = Nothing
+                                        , completedSessions = newCompletedSessions
+                                        , sessionState = newSessionState
+                                    }
+                            in
+                            if shouldLoadNextText then
+                                ( updatedModel, Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1)) )
+                            else
+                                ( updatedModel, Cmd.none )
                         else
                             ( { model
                                 | userInput = result.userInput
