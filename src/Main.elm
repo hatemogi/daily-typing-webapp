@@ -39,6 +39,7 @@ type alias Model =
     , selectedSessionDuration : Int  -- in minutes
     , completedSessions : Int
     , gracePeriodStartTime : Maybe Time.Posix
+    , textRetryCount : Int  -- Number of retries for current text
     }
 
 type SessionState
@@ -85,6 +86,7 @@ init _ =
       , selectedSessionDuration = 10  -- default 10 minutes
       , completedSessions = 0
       , gracePeriodStartTime = Nothing
+      , textRetryCount = 0
       }
     , loadMeditations
     )
@@ -299,15 +301,18 @@ update msg model =
                                     model.endTime
                         in
                         if mistakeLimitExceeded then
-                            -- Auto advance to next text when failed, and end grace period if active
+                            -- Retry system: reset with full hearts or advance to next text after 3 retries
                             let
+                                newRetryCount = model.textRetryCount + 1
+                                
                                 newSessionState = 
                                     if model.sessionState == SessionGracePeriod then
                                         SessionCompleted
                                     else
                                         model.sessionState
                                 
-                                shouldLoadNextText = model.sessionState == SessionActive
+                                shouldLoadNextText = 
+                                    (model.sessionState == SessionActive) && (newRetryCount > 3)
                                 
                                 updatedModel = 
                                     { model
@@ -319,6 +324,7 @@ update msg model =
                                         , endTime = Nothing
                                         , isComplete = False
                                         , sessionState = newSessionState
+                                        , textRetryCount = if shouldLoadNextText then 0 else newRetryCount
                                     }
                             in
                             if shouldLoadNextText then
@@ -355,6 +361,7 @@ update msg model =
                                         , endTime = Nothing
                                         , completedSessions = newCompletedSessions
                                         , sessionState = newSessionState
+                                        , textRetryCount = 0  -- Reset retry count on success
                                     }
                             in
                             if shouldLoadNextText then
@@ -409,6 +416,7 @@ update msg model =
                 | sessionState = SessionActive
                 , sessionStartTime = Nothing  -- Will be set on first correct keystroke
                 , completedSessions = 0
+                , textRetryCount = 0  -- Reset retry count for new session
               }
             , Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1))
             )
@@ -419,6 +427,7 @@ update msg model =
                 , sessionStartTime = Nothing
                 , completedSessions = 0
                 , gracePeriodStartTime = Nothing
+                , textRetryCount = 0
               }
             , Cmd.none
             )
