@@ -276,6 +276,108 @@
             text-align: center;
         }
 
+        .session-timer {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .session-start h3, .session-active h3, .session-completed h3 {
+            margin: 0 0 15px 0;
+            font-size: 1.3em;
+            font-weight: 500;
+        }
+
+        .session-start p {
+            margin: 0 0 20px 0;
+            opacity: 0.9;
+        }
+
+        .session-info {
+            display: flex;
+            justify-content: space-around;
+            margin: 15px 0;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .session-time, .session-completed {
+            font-size: 1.1em;
+            font-weight: 500;
+        }
+
+        .btn-session-start, .btn-session-stop {
+            padding: 12px 25px;
+            font-size: 1em;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn-session-start {
+            background: white;
+            color: #667eea;
+        }
+
+        .btn-session-start:hover {
+            background: #f8f8f8;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+
+        .btn-session-stop {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.5);
+        }
+
+        .btn-session-stop:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+
+        .session-results p {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .session-actions {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .session-progress-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(0,0,0,0.1);
+            border-radius: 3px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+
+        .session-progress-bar {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .session-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+            border-radius: 3px;
+        }
+
         @media (max-width: 768px) {
             .container {
                 margin: 10px;

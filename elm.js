@@ -5417,6 +5417,7 @@ var $elm$core$Task$perform = F2(
 				A2($elm$core$Task$map, toMessage, task)));
 	});
 var $elm$browser$Browser$element = _Browser_element;
+var $author$project$Main$SessionNotStarted = {$: 'SessionNotStarted'};
 var $author$project$Main$LoadMeditations = function (a) {
 	return {$: 'LoadMeditations', a: a};
 };
@@ -6236,6 +6237,7 @@ var $elm$time$Time$millisToPosix = $elm$time$Time$Posix;
 var $author$project$Main$init = function (_v0) {
 	return _Utils_Tuple2(
 		{
+			completedSessions: 0,
 			correctedPositions: _List_Nil,
 			currentMeditation: $elm$core$Maybe$Nothing,
 			currentPosition: 0,
@@ -6244,6 +6246,9 @@ var $author$project$Main$init = function (_v0) {
 			isComplete: false,
 			meditations: _List_Nil,
 			mistakes: 0,
+			selectedSessionDuration: 10,
+			sessionStartTime: $elm$core$Maybe$Nothing,
+			sessionState: $author$project$Main$SessionNotStarted,
 			startTime: $elm$core$Maybe$Nothing,
 			userInput: ''
 		},
@@ -6525,6 +6530,8 @@ var $author$project$Main$FocusTypingArea = {$: 'FocusTypingArea'};
 var $author$project$Main$GotRandomIndex = function (a) {
 	return {$: 'GotRandomIndex', a: a};
 };
+var $author$project$Main$SessionActive = {$: 'SessionActive'};
+var $author$project$Main$SessionCompleted = {$: 'SessionCompleted'};
 var $elm$core$Task$onError = _Scheduler_onError;
 var $elm$core$Task$attempt = F2(
 	function (resultToMessage, task) {
@@ -6829,10 +6836,11 @@ var $author$project$Main$update = F2(
 				} else {
 					var meditation = _v2.a;
 					if (model.isComplete && (key === 'Enter')) {
+						var newCompletedSessions = _Utils_eq(model.sessionState, $author$project$Main$SessionActive) ? (model.completedSessions + 1) : model.completedSessions;
 						return _Utils_Tuple2(
 							_Utils_update(
 								model,
-								{correctedPositions: _List_Nil, currentPosition: 0, endTime: $elm$core$Maybe$Nothing, isComplete: false, mistakes: 0, startTime: $elm$core$Maybe$Nothing, userInput: ''}),
+								{completedSessions: newCompletedSessions, correctedPositions: _List_Nil, currentPosition: 0, endTime: $elm$core$Maybe$Nothing, isComplete: false, mistakes: 0, startTime: $elm$core$Maybe$Nothing, userInput: ''}),
 							A2(
 								$elm$random$Random$generate,
 								$author$project$Main$GotRandomIndex,
@@ -6924,12 +6932,51 @@ var $author$project$Main$update = F2(
 							$elm$random$Random$int,
 							0,
 							$elm$core$List$length(model.meditations) - 1)));
-			default:
+			case 'Tick':
 				var time = msg.a;
+				var updatedModel = _Utils_update(
+					model,
+					{currentTime: time});
+				var sessionShouldEnd = function () {
+					var _v4 = _Utils_Tuple2(model.sessionState, model.sessionStartTime);
+					if ((_v4.a.$ === 'SessionActive') && (_v4.b.$ === 'Just')) {
+						var _v5 = _v4.a;
+						var startTime = _v4.b.a;
+						var durationMillis = (model.selectedSessionDuration * 60) * 1000;
+						return _Utils_cmp(
+							$elm$time$Time$posixToMillis(time) - $elm$time$Time$posixToMillis(startTime),
+							durationMillis) > -1;
+					} else {
+						return false;
+					}
+				}();
+				return sessionShouldEnd ? _Utils_Tuple2(
+					_Utils_update(
+						updatedModel,
+						{sessionState: $author$project$Main$SessionCompleted}),
+					$elm$core$Platform$Cmd$none) : _Utils_Tuple2(updatedModel, $elm$core$Platform$Cmd$none);
+			case 'StartSession':
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{currentTime: time}),
+						{
+							completedSessions: 0,
+							sessionStartTime: $elm$core$Maybe$Just(model.currentTime),
+							sessionState: $author$project$Main$SessionActive
+						}),
+					$elm$core$Platform$Cmd$none);
+			case 'EndSession':
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{completedSessions: 0, sessionStartTime: $elm$core$Maybe$Nothing, sessionState: $author$project$Main$SessionNotStarted}),
+					$elm$core$Platform$Cmd$none);
+			default:
+				var minutes = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{selectedSessionDuration: minutes}),
 					$elm$core$Platform$Cmd$none);
 		}
 	});
@@ -6947,11 +6994,330 @@ var $elm$html$Html$h1 = _VirtualDom_node('h1');
 var $elm$html$Html$h2 = _VirtualDom_node('h2');
 var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
+var $author$project$Main$EndSession = {$: 'EndSession'};
+var $author$project$Main$SelectSessionDuration = function (a) {
+	return {$: 'SelectSessionDuration', a: a};
+};
+var $author$project$Main$StartSession = {$: 'StartSession'};
+var $elm$html$Html$button = _VirtualDom_node('button');
+var $author$project$Main$calculateSessionTimeLeft = function (model) {
+	var _v0 = _Utils_Tuple2(model.sessionState, model.sessionStartTime);
+	if ((_v0.a.$ === 'SessionActive') && (_v0.b.$ === 'Just')) {
+		var _v1 = _v0.a;
+		var startTime = _v0.b.a;
+		var elapsed = $elm$time$Time$posixToMillis(model.currentTime) - $elm$time$Time$posixToMillis(startTime);
+		var durationMillis = (model.selectedSessionDuration * 60) * 1000;
+		var remaining = A2($elm$core$Basics$max, 0, durationMillis - elapsed);
+		return (remaining / 1000) | 0;
+	} else {
+		return model.selectedSessionDuration * 60;
+	}
+};
+var $elm$core$Basics$modBy = _Basics_modBy;
+var $elm$core$String$cons = _String_cons;
+var $elm$core$String$fromChar = function (_char) {
+	return A2($elm$core$String$cons, _char, '');
+};
+var $elm$core$Bitwise$shiftRightBy = _Bitwise_shiftRightBy;
+var $elm$core$String$repeatHelp = F3(
+	function (n, chunk, result) {
+		return (n <= 0) ? result : A3(
+			$elm$core$String$repeatHelp,
+			n >> 1,
+			_Utils_ap(chunk, chunk),
+			(!(n & 1)) ? result : _Utils_ap(result, chunk));
+	});
+var $elm$core$String$repeat = F2(
+	function (n, chunk) {
+		return A3($elm$core$String$repeatHelp, n, chunk, '');
+	});
+var $elm$core$String$padLeft = F3(
+	function (n, _char, string) {
+		return _Utils_ap(
+			A2(
+				$elm$core$String$repeat,
+				n - $elm$core$String$length(string),
+				$elm$core$String$fromChar(_char)),
+			string);
+	});
+var $author$project$Main$formatSessionTime = function (totalSeconds) {
+	var seconds = A2($elm$core$Basics$modBy, 60, totalSeconds);
+	var minutes = (totalSeconds / 60) | 0;
+	return A3(
+		$elm$core$String$padLeft,
+		2,
+		_Utils_chr('0'),
+		$elm$core$String$fromInt(minutes)) + (':' + A3(
+		$elm$core$String$padLeft,
+		2,
+		_Utils_chr('0'),
+		$elm$core$String$fromInt(seconds)));
+};
+var $elm$html$Html$h3 = _VirtualDom_node('h3');
+var $elm$html$Html$h4 = _VirtualDom_node('h4');
+var $elm$virtual_dom$VirtualDom$Normal = function (a) {
+	return {$: 'Normal', a: a};
+};
+var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
+var $elm$html$Html$Events$on = F2(
+	function (event, decoder) {
+		return A2(
+			$elm$virtual_dom$VirtualDom$on,
+			event,
+			$elm$virtual_dom$VirtualDom$Normal(decoder));
+	});
+var $elm$html$Html$Events$onClick = function (msg) {
+	return A2(
+		$elm$html$Html$Events$on,
+		'click',
+		$elm$json$Json$Decode$succeed(msg));
+};
+var $elm$html$Html$p = _VirtualDom_node('p');
+var $author$project$Main$viewSessionTimer = function (model) {
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				$elm$html$Html$Attributes$class('session-timer')
+			]),
+		_List_fromArray(
+			[
+				function () {
+				var _v0 = model.sessionState;
+				switch (_v0.$) {
+					case 'SessionNotStarted':
+						return A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('session-start')
+								]),
+							_List_fromArray(
+								[
+									A2(
+									$elm$html$Html$h3,
+									_List_Nil,
+									_List_fromArray(
+										[
+											$elm$html$Html$text('⏱️ 세션 타이머')
+										])),
+									A2(
+									$elm$html$Html$p,
+									_List_Nil,
+									_List_fromArray(
+										[
+											$elm$html$Html$text('집중 세션을 시작해보세요!')
+										])),
+									A2(
+									$elm$html$Html$div,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$class('duration-selector')
+										]),
+									_List_fromArray(
+										[
+											A2(
+											$elm$html$Html$h4,
+											_List_Nil,
+											_List_fromArray(
+												[
+													$elm$html$Html$text('세션 시간 선택:')
+												])),
+											A2(
+											$elm$html$Html$div,
+											_List_fromArray(
+												[
+													$elm$html$Html$Attributes$class('duration-buttons')
+												]),
+											_List_fromArray(
+												[
+													A2(
+													$elm$html$Html$button,
+													_List_fromArray(
+														[
+															$elm$html$Html$Events$onClick(
+															$author$project$Main$SelectSessionDuration(5)),
+															$elm$html$Html$Attributes$class(
+															(model.selectedSessionDuration === 5) ? 'btn-duration active' : 'btn-duration')
+														]),
+													_List_fromArray(
+														[
+															$elm$html$Html$text('5분')
+														])),
+													A2(
+													$elm$html$Html$button,
+													_List_fromArray(
+														[
+															$elm$html$Html$Events$onClick(
+															$author$project$Main$SelectSessionDuration(10)),
+															$elm$html$Html$Attributes$class(
+															(model.selectedSessionDuration === 10) ? 'btn-duration active' : 'btn-duration')
+														]),
+													_List_fromArray(
+														[
+															$elm$html$Html$text('10분')
+														])),
+													A2(
+													$elm$html$Html$button,
+													_List_fromArray(
+														[
+															$elm$html$Html$Events$onClick(
+															$author$project$Main$SelectSessionDuration(15)),
+															$elm$html$Html$Attributes$class(
+															(model.selectedSessionDuration === 15) ? 'btn-duration active' : 'btn-duration')
+														]),
+													_List_fromArray(
+														[
+															$elm$html$Html$text('15분')
+														]))
+												]))
+										])),
+									A2(
+									$elm$html$Html$button,
+									_List_fromArray(
+										[
+											$elm$html$Html$Events$onClick($author$project$Main$StartSession),
+											$elm$html$Html$Attributes$class('btn-session-start')
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text(
+											$elm$core$String$fromInt(model.selectedSessionDuration) + '분 세션 시작')
+										]))
+								]));
+					case 'SessionActive':
+						return A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('session-active')
+								]),
+							_List_fromArray(
+								[
+									A2(
+									$elm$html$Html$h3,
+									_List_Nil,
+									_List_fromArray(
+										[
+											$elm$html$Html$text('⏱️ 세션 진행중')
+										])),
+									A2(
+									$elm$html$Html$div,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$class('session-info')
+										]),
+									_List_fromArray(
+										[
+											A2(
+											$elm$html$Html$div,
+											_List_fromArray(
+												[
+													$elm$html$Html$Attributes$class('session-time')
+												]),
+											_List_fromArray(
+												[
+													$elm$html$Html$text(
+													'남은 시간: ' + $author$project$Main$formatSessionTime(
+														$author$project$Main$calculateSessionTimeLeft(model)))
+												])),
+											A2(
+											$elm$html$Html$div,
+											_List_fromArray(
+												[
+													$elm$html$Html$Attributes$class('session-completed')
+												]),
+											_List_fromArray(
+												[
+													$elm$html$Html$text(
+													'완성한 지문: ' + ($elm$core$String$fromInt(model.completedSessions) + '개'))
+												]))
+										])),
+									A2(
+									$elm$html$Html$button,
+									_List_fromArray(
+										[
+											$elm$html$Html$Events$onClick($author$project$Main$EndSession),
+											$elm$html$Html$Attributes$class('btn-session-stop')
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text('세션 종료')
+										]))
+								]));
+					default:
+						return A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('session-completed')
+								]),
+							_List_fromArray(
+								[
+									A2(
+									$elm$html$Html$h3,
+									_List_Nil,
+									_List_fromArray(
+										[
+											$elm$html$Html$text('🎉 세션 완료!')
+										])),
+									A2(
+									$elm$html$Html$div,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$class('session-results')
+										]),
+									_List_fromArray(
+										[
+											A2(
+											$elm$html$Html$p,
+											_List_Nil,
+											_List_fromArray(
+												[
+													$elm$html$Html$text(
+													$elm$core$String$fromInt(model.selectedSessionDuration) + ('분 동안 ' + ($elm$core$String$fromInt(model.completedSessions) + '개의 지문을 완성했습니다!')))
+												])),
+											A2(
+											$elm$html$Html$div,
+											_List_fromArray(
+												[
+													$elm$html$Html$Attributes$class('session-actions')
+												]),
+											_List_fromArray(
+												[
+													A2(
+													$elm$html$Html$button,
+													_List_fromArray(
+														[
+															$elm$html$Html$Events$onClick($author$project$Main$StartSession),
+															$elm$html$Html$Attributes$class('btn-session-start')
+														]),
+													_List_fromArray(
+														[
+															$elm$html$Html$text('새 세션 시작')
+														])),
+													A2(
+													$elm$html$Html$button,
+													_List_fromArray(
+														[
+															$elm$html$Html$Events$onClick($author$project$Main$EndSession),
+															$elm$html$Html$Attributes$class('btn-session-stop')
+														]),
+													_List_fromArray(
+														[
+															$elm$html$Html$text('종료')
+														]))
+												]))
+										]))
+								]));
+				}
+			}()
+			]));
+};
 var $author$project$Main$KeyPressed = function (a) {
 	return {$: 'KeyPressed', a: a};
 };
 var $author$project$Main$StartOver = {$: 'StartOver'};
-var $elm$html$Html$button = _VirtualDom_node('button');
 var $elm$core$Basics$round = _Basics_round;
 var $author$project$Main$calculateAccuracy = F2(
 	function (model, targetText) {
@@ -6982,26 +7348,7 @@ var $author$project$Main$calculateWPM = F2(
 			return (elapsedMinutes > 0) ? $elm$core$Basics$round(wordsTyped / elapsedMinutes) : 0;
 		}
 	});
-var $elm$html$Html$h3 = _VirtualDom_node('h3');
 var $elm$html$Html$Attributes$id = $elm$html$Html$Attributes$stringProperty('id');
-var $elm$virtual_dom$VirtualDom$Normal = function (a) {
-	return {$: 'Normal', a: a};
-};
-var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
-var $elm$html$Html$Events$on = F2(
-	function (event, decoder) {
-		return A2(
-			$elm$virtual_dom$VirtualDom$on,
-			event,
-			$elm$virtual_dom$VirtualDom$Normal(decoder));
-	});
-var $elm$html$Html$Events$onClick = function (msg) {
-	return A2(
-		$elm$html$Html$Events$on,
-		'click',
-		$elm$json$Json$Decode$succeed(msg));
-};
-var $elm$html$Html$p = _VirtualDom_node('p');
 var $elm$html$Html$Attributes$tabindex = function (n) {
 	return A2(
 		_VirtualDom_attribute,
@@ -7038,9 +7385,48 @@ var $author$project$Main$viewLives = F2(
 			},
 			A2($elm$core$List$range, 1, maxLives));
 	});
-var $elm$core$String$cons = _String_cons;
-var $elm$core$String$fromChar = function (_char) {
-	return A2($elm$core$String$cons, _char, '');
+var $elm$core$String$fromFloat = _String_fromNumber;
+var $elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
+var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
+var $author$project$Main$viewSessionProgressBar = function (model) {
+	var _v0 = model.sessionState;
+	if (_v0.$ === 'SessionActive') {
+		var totalTime = model.selectedSessionDuration * 60;
+		var timeLeft = $author$project$Main$calculateSessionTimeLeft(model);
+		var remainingPercentage = (timeLeft / totalTime) * 100;
+		var progressStyle = A2(
+			$elm$html$Html$Attributes$style,
+			'width',
+			$elm$core$String$fromFloat(remainingPercentage) + '%');
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('session-progress-container')
+				]),
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('session-progress-bar')
+						]),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('session-progress-fill'),
+									progressStyle
+								]),
+							_List_Nil)
+						]))
+				]));
+	} else {
+		return $elm$html$Html$text('');
+	}
 };
 var $elm$core$String$foldr = _String_foldr;
 var $elm$core$String$toList = function (string) {
@@ -7124,6 +7510,7 @@ var $author$project$Main$viewTypingPractice = F2(
 						]),
 					_List_fromArray(
 						[
+							$author$project$Main$viewSessionProgressBar(model),
 							A2(
 							$elm$html$Html$div,
 							_List_fromArray(
@@ -7308,6 +7695,7 @@ var $author$project$Main$view = function (model) {
 					[
 						$elm$html$Html$text('명상록으로 하루를 시작하세요')
 					])),
+				$author$project$Main$viewSessionTimer(model),
 				function () {
 				var _v0 = model.currentMeditation;
 				if (_v0.$ === 'Nothing') {

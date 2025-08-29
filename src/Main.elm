@@ -34,8 +34,16 @@ type alias Model =
     , startTime : Maybe Time.Posix
     , currentTime : Time.Posix
     , endTime : Maybe Time.Posix
+    , sessionState : SessionState
+    , sessionStartTime : Maybe Time.Posix
+    , selectedSessionDuration : Int  -- in minutes
+    , completedSessions : Int
     }
 
+type SessionState
+    = SessionNotStarted
+    | SessionActive
+    | SessionCompleted
 
 type alias Meditation =
     { id : String
@@ -54,6 +62,9 @@ type Msg
     | GotRandomIndex Int
     | Tick Time.Posix
     | FocusTypingArea
+    | StartSession
+    | EndSession
+    | SelectSessionDuration Int
 
 
 init : () -> ( Model, Cmd Msg )
@@ -68,6 +79,10 @@ init _ =
       , startTime = Nothing
       , currentTime = Time.millisToPosix 0
       , endTime = Nothing
+      , sessionState = SessionNotStarted
+      , sessionStartTime = Nothing
+      , selectedSessionDuration = 10  -- default 10 minutes
+      , completedSessions = 0
       }
     , loadMeditations
     )
@@ -138,6 +153,13 @@ update msg model =
                 Just meditation ->
                     if model.isComplete && key == "Enter" then
                         -- Start next text when Enter is pressed after completion
+                        let
+                            newCompletedSessions =
+                                if model.sessionState == SessionActive then
+                                    model.completedSessions + 1
+                                else
+                                    model.completedSessions
+                        in
                         ( { model
                             | userInput = ""
                             , currentPosition = 0
@@ -146,6 +168,7 @@ update msg model =
                             , correctedPositions = []
                             , startTime = Nothing
                             , endTime = Nothing
+                            , completedSessions = newCompletedSessions
                           }
                         , Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1))
                         )
@@ -322,7 +345,47 @@ update msg model =
             )
 
         Tick time ->
-            ( { model | currentTime = time }, Cmd.none )
+            let
+                updatedModel = { model | currentTime = time }
+                
+                -- Check if session should end
+                sessionShouldEnd = 
+                    case (model.sessionState, model.sessionStartTime) of
+                        (SessionActive, Just startTime) ->
+                            let
+                                durationMillis = model.selectedSessionDuration * 60 * 1000
+                            in
+                            Time.posixToMillis time - Time.posixToMillis startTime >= durationMillis
+                        _ ->
+                            False
+            in
+            if sessionShouldEnd then
+                ( { updatedModel | sessionState = SessionCompleted }, Cmd.none )
+            else
+                ( updatedModel, Cmd.none )
+
+        StartSession ->
+            ( { model 
+                | sessionState = SessionActive
+                , sessionStartTime = Just model.currentTime
+                , completedSessions = 0
+              }
+            , Cmd.none
+            )
+
+        EndSession ->
+            ( { model 
+                | sessionState = SessionNotStarted
+                , sessionStartTime = Nothing
+                , completedSessions = 0
+              }
+            , Cmd.none
+            )
+
+        SelectSessionDuration minutes ->
+            ( { model | selectedSessionDuration = minutes }
+            , Cmd.none
+            )
 
 
 
@@ -403,11 +466,35 @@ viewLives model targetText =
            )
 
 
+calculateSessionTimeLeft : Model -> Int
+calculateSessionTimeLeft model =
+    case (model.sessionState, model.sessionStartTime) of
+        (SessionActive, Just startTime) ->
+            let
+                durationMillis = model.selectedSessionDuration * 60 * 1000
+                elapsed = Time.posixToMillis model.currentTime - Time.posixToMillis startTime
+                remaining = Basics.max 0 (durationMillis - elapsed)
+            in
+            remaining // 1000  -- Convert to seconds
+        _ ->
+            model.selectedSessionDuration * 60  -- selected duration in seconds
+
+
+formatSessionTime : Int -> String
+formatSessionTime totalSeconds =
+    let
+        minutes = totalSeconds // 60
+        seconds = modBy 60 totalSeconds
+    in
+    String.padLeft 2 '0' (String.fromInt minutes) ++ ":" ++ String.padLeft 2 '0' (String.fromInt seconds)
+
+
 view : Model -> Html Msg
 view model =
     div [ class "container" ]
         [ h1 [ class "title" ] [ text "Daily Typing Practice" ]
         , h2 [ class "subtitle" ] [ text "명상록으로 하루를 시작하세요" ]
+        , viewSessionTimer model
         , case model.currentMeditation of
             Nothing ->
                 div [ class "loading" ] [ text "명상록을 불러오는 중..." ]
@@ -426,7 +513,8 @@ viewTypingPractice model meditation =
             , p [ class "source" ] [ text meditation.source ]
             ]
         , div [ class "typing-area" ]
-            [ div 
+            [ viewSessionProgressBar model
+            , div 
                 [ class "target-text"
                 , tabindex 0
                 , id "typing-area"
@@ -462,6 +550,84 @@ viewTypingPractice model meditation =
                 [ button [ onClick StartOver, class "btn-secondary" ] [ text "다시 시작" ] ]
         ]
 
+
+viewSessionTimer : Model -> Html Msg
+viewSessionTimer model =
+    div [ class "session-timer" ]
+        [ case model.sessionState of
+            SessionNotStarted ->
+                div [ class "session-start" ]
+                    [ h3 [] [ text "⏱️ 세션 타이머" ]
+                    , p [] [ text "집중 세션을 시작해보세요!" ]
+                    , div [ class "duration-selector" ]
+                        [ h4 [] [ text "세션 시간 선택:" ]
+                        , div [ class "duration-buttons" ]
+                            [ button 
+                                [ onClick (SelectSessionDuration 5)
+                                , class (if model.selectedSessionDuration == 5 then "btn-duration active" else "btn-duration")
+                                ] 
+                                [ text "5분" ]
+                            , button 
+                                [ onClick (SelectSessionDuration 10)
+                                , class (if model.selectedSessionDuration == 10 then "btn-duration active" else "btn-duration")
+                                ] 
+                                [ text "10분" ]
+                            , button 
+                                [ onClick (SelectSessionDuration 15)
+                                , class (if model.selectedSessionDuration == 15 then "btn-duration active" else "btn-duration")
+                                ] 
+                                [ text "15분" ]
+                            ]
+                        ]
+                    , button [ onClick StartSession, class "btn-session-start" ] 
+                        [ text (String.fromInt model.selectedSessionDuration ++ "분 세션 시작") ]
+                    ]
+            
+            SessionActive ->
+                div [ class "session-active" ]
+                    [ h3 [] [ text "⏱️ 세션 진행중" ]
+                    , div [ class "session-info" ]
+                        [ div [ class "session-time" ]
+                            [ text ("남은 시간: " ++ formatSessionTime (calculateSessionTimeLeft model)) ]
+                        , div [ class "session-completed" ]
+                            [ text ("완성한 지문: " ++ String.fromInt model.completedSessions ++ "개") ]
+                        ]
+                    , button [ onClick EndSession, class "btn-session-stop" ] [ text "세션 종료" ]
+                    ]
+            
+            SessionCompleted ->
+                div [ class "session-completed" ]
+                    [ h3 [] [ text "🎉 세션 완료!" ]
+                    , div [ class "session-results" ]
+                        [ p [] [ text (String.fromInt model.selectedSessionDuration ++ "분 동안 " ++ String.fromInt model.completedSessions ++ "개의 지문을 완성했습니다!") ]
+                        , div [ class "session-actions" ]
+                            [ button [ onClick StartSession, class "btn-session-start" ] [ text "새 세션 시작" ]
+                            , button [ onClick EndSession, class "btn-session-stop" ] [ text "종료" ]
+                            ]
+                        ]
+                    ]
+        ]
+
+
+viewSessionProgressBar : Model -> Html Msg
+viewSessionProgressBar model =
+    case model.sessionState of
+        SessionActive ->
+            let
+                timeLeft = calculateSessionTimeLeft model
+                totalTime = model.selectedSessionDuration * 60
+                remainingPercentage = (toFloat timeLeft / toFloat totalTime) * 100
+                
+                progressStyle =
+                    style "width" (String.fromFloat remainingPercentage ++ "%")
+            in
+            div [ class "session-progress-container" ]
+                [ div [ class "session-progress-bar" ]
+                    [ div [ class "session-progress-fill", progressStyle ] []
+                    ]
+                ]
+        _ ->
+            text ""
 
 
 viewTypingText : String -> Int -> List Int -> Html Msg
