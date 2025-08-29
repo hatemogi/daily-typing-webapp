@@ -542,9 +542,30 @@
             gap: 15px;
         }
 
-        .session-time-compact, .session-completed-compact {
+        .session-time-compact, .session-completed-compact, .session-score-compact {
             font-size: 1em;
             font-weight: 500;
+        }
+
+        .last-text-score-compact {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #28a745;
+            background: rgba(40, 167, 69, 0.1);
+            padding: 4px 8px;
+            border-radius: 12px;
+            animation: score-highlight 2s ease-out;
+        }
+
+        @keyframes score-highlight {
+            0% { 
+                background: rgba(40, 167, 69, 0.3);
+                transform: scale(1.05);
+            }
+            100% { 
+                background: rgba(40, 167, 69, 0.1);
+                transform: scale(1);
+            }
         }
 
         .btn-session-stop-compact {

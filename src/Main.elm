@@ -40,6 +40,8 @@ type alias Model =
     , completedSessions : Int
     , gracePeriodStartTime : Maybe Time.Posix
     , textRetryCount : Int  -- Number of retries for current text
+    , sessionTotalScore : Int  -- Total score for current session
+    , lastTextScore : Int  -- Score for the last completed text
     }
 
 type SessionState
@@ -87,6 +89,8 @@ init _ =
       , completedSessions = 0
       , gracePeriodStartTime = Nothing
       , textRetryCount = 0
+      , sessionTotalScore = 0
+      , lastTextScore = 0
       }
     , loadMeditations
     )
@@ -340,6 +344,14 @@ update msg model =
                                     else
                                         model.completedSessions
                                 
+                                -- Calculate score for completed text
+                                textScore = calculateTextScore meditation.text result.mistakes model.textRetryCount
+                                newTotalScore = 
+                                    if model.sessionState == SessionActive || model.sessionState == SessionGracePeriod then
+                                        model.sessionTotalScore + textScore
+                                    else
+                                        model.sessionTotalScore
+                                
                                 -- End session when text is completed during grace period
                                 newSessionState =
                                     if model.sessionState == SessionGracePeriod then
@@ -362,6 +374,8 @@ update msg model =
                                         , completedSessions = newCompletedSessions
                                         , sessionState = newSessionState
                                         , textRetryCount = 0  -- Reset retry count on success
+                                        , sessionTotalScore = newTotalScore
+                                        , lastTextScore = textScore
                                     }
                             in
                             if shouldLoadNextText then
@@ -417,6 +431,8 @@ update msg model =
                 , sessionStartTime = Nothing  -- Will be set on first correct keystroke
                 , completedSessions = 0
                 , textRetryCount = 0  -- Reset retry count for new session
+                , sessionTotalScore = 0  -- Reset score for new session
+                , lastTextScore = 0
               }
             , Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1))
             )
@@ -428,6 +444,8 @@ update msg model =
                 , completedSessions = 0
                 , gracePeriodStartTime = Nothing
                 , textRetryCount = 0
+                , sessionTotalScore = 0
+                , lastTextScore = 0
               }
             , Cmd.none
             )
@@ -499,6 +517,41 @@ calculateMaxLives model targetText =
                 |> List.length
     in
     3 + (wordCount // 30)
+
+
+calculateTextScore : String -> Int -> Int -> Int
+calculateTextScore text mistakes retryCount =
+    let
+        wordCount = 
+            text
+                |> String.words
+                |> List.length
+        
+        baseScore = wordCount * 10
+        
+        -- Accuracy multiplier based on mistakes
+        accuracyMultiplier =
+            case mistakes of
+                0 -> 2.0    -- Perfect: 100% bonus (2x)
+                1 -> 1.5    -- 1 mistake: 50% bonus
+                2 -> 1.25   -- 2 mistakes: 25% bonus
+                _ -> 1.0    -- 3+ mistakes: no bonus
+        
+        -- Retry penalty multiplier
+        retryMultiplier =
+            case retryCount of
+                0 -> 1.0    -- No retries
+                1 -> 0.8    -- 1 retry: -20%
+                2 -> 0.6    -- 2 retries: -40%
+                _ -> 0.4    -- 3+ retries: -60%
+        
+        finalScore = 
+            toFloat baseScore 
+                * accuracyMultiplier 
+                * retryMultiplier
+                |> round
+    in
+    Basics.max 0 finalScore
 
 
 viewLives : Model -> String -> List (Html Msg)
@@ -696,6 +749,13 @@ viewSessionTimer model =
                             ) ]
                         , div [ class "session-completed-compact" ]
                             [ text ("✅ " ++ String.fromInt model.completedSessions ++ "개 완성") ]
+                        , div [ class "session-score-compact" ]
+                            [ text ("🎯 " ++ String.fromInt model.sessionTotalScore ++ "점") ]
+                        , if model.lastTextScore > 0 then
+                            div [ class "last-text-score-compact" ]
+                                [ text ("직전: +" ++ String.fromInt model.lastTextScore ++ "점") ]
+                          else
+                            text ""
                         , button [ onClick EndSession, class "btn-session-stop-compact" ] [ text "종료" ]
                         ]
                     ]
