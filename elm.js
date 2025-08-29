@@ -7183,6 +7183,19 @@ var $author$project$Main$viewSessionTimer = function (model) {
 													_List_fromArray(
 														[
 															$elm$html$Html$Events$onClick(
+															$author$project$Main$SelectSessionDuration(1)),
+															$elm$html$Html$Attributes$class(
+															(model.selectedSessionDuration === 1) ? 'btn-duration active' : 'btn-duration')
+														]),
+													_List_fromArray(
+														[
+															$elm$html$Html$text('1분')
+														])),
+													A2(
+													$elm$html$Html$button,
+													_List_fromArray(
+														[
+															$elm$html$Html$Events$onClick(
 															$author$project$Main$SelectSessionDuration(5)),
 															$elm$html$Html$Attributes$class(
 															(model.selectedSessionDuration === 5) ? 'btn-duration active' : 'btn-duration')

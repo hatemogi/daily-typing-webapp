@@ -634,6 +634,11 @@ viewSessionTimer model =
                         [ h4 [] [ text "세션 시간 선택:" ]
                         , div [ class "duration-buttons" ]
                             [ button 
+                                [ onClick (SelectSessionDuration 1)
+                                , class (if model.selectedSessionDuration == 1 then "btn-duration active" else "btn-duration")
+                                ] 
+                                [ text "1분" ]
+                            , button 
                                 [ onClick (SelectSessionDuration 5)
                                 , class (if model.selectedSessionDuration == 5 then "btn-duration active" else "btn-duration")
                                 ] 

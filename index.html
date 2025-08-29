@@ -323,6 +323,56 @@
             box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
         }
 
+        .duration-selector {
+            margin: 20px 0;
+        }
+
+        .duration-selector h4 {
+            margin: 0 0 15px 0;
+            font-size: 1em;
+            font-weight: 500;
+            opacity: 0.9;
+        }
+
+        .duration-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .btn-duration {
+            padding: 8px 12px;
+            font-size: 0.85em;
+            border: 2px solid rgba(255,255,255,0.5);
+            background: transparent;
+            color: white;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            min-width: 45px;
+            flex: 1;
+            max-width: 70px;
+        }
+
+        .btn-duration:hover {
+            background: rgba(255,255,255,0.1);
+            transform: translateY(-2px);
+        }
+
+        .btn-duration.active {
+            background: white;
+            color: #667eea;
+            border-color: white;
+            font-weight: 600;
+        }
+
+        .btn-duration.active:hover {
+            background: #f8f8f8;
+        }
+
         .session-start h3, .session-active h3, .session-completed h3 {
             margin: 0 0 15px 0;
             font-size: 1.3em;
