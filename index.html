@@ -198,6 +198,41 @@
             font-weight: 600;
         }
 
+        .final-score {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .final-score h2 {
+            margin: 0 0 15px 0;
+            font-size: 1.4em;
+            color: #495057;
+            font-weight: 500;
+        }
+
+        .score-display {
+            font-size: 3em;
+            font-weight: 700;
+            color: #007bff;
+            text-shadow: 0 2px 4px rgba(0,123,255,0.3);
+            margin-bottom: 20px;
+            animation: score-celebration 1.5s ease-out;
+        }
+
+        @keyframes score-celebration {
+            0% { 
+                transform: scale(0.8);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% { 
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
         .enter-hint {
             font-size: 0.9em;
             opacity: 0.8;

@@ -37,7 +37,6 @@ type alias Model =
     , sessionState : SessionState
     , sessionStartTime : Maybe Time.Posix
     , selectedSessionDuration : Int  -- in minutes
-    , completedSessions : Int
     , gracePeriodStartTime : Maybe Time.Posix
     , textRetryCount : Int  -- Number of retries for current text
     , sessionTotalScore : Int  -- Total score for current session
@@ -86,7 +85,6 @@ init _ =
       , sessionState = SessionNotStarted
       , sessionStartTime = Nothing
       , selectedSessionDuration = 10  -- default 10 minutes
-      , completedSessions = 0
       , gracePeriodStartTime = Nothing
       , textRetryCount = 0
       , sessionTotalScore = 0
@@ -337,13 +335,7 @@ update msg model =
                                 ( updatedModel, Cmd.none )
                         else if isComplete then
                             -- Auto advance to next text when completed
-                            let
-                                newCompletedSessions =
-                                    if model.sessionState == SessionActive || model.sessionState == SessionGracePeriod then
-                                        model.completedSessions + 1
-                                    else
-                                        model.completedSessions
-                                
+                            let                                
                                 -- Calculate score for completed text
                                 textScore = calculateTextScore meditation.text result.mistakes model.textRetryCount
                                 newTotalScore = 
@@ -371,7 +363,6 @@ update msg model =
                                         , correctedPositions = []
                                         , startTime = Nothing
                                         , endTime = Nothing
-                                        , completedSessions = newCompletedSessions
                                         , sessionState = newSessionState
                                         , textRetryCount = 0  -- Reset retry count on success
                                         , sessionTotalScore = newTotalScore
@@ -413,14 +404,14 @@ update msg model =
                             False
                 
             in
-            if sessionShouldEnd && not model.isComplete then
-                -- Start grace period if text is not complete (silent mode)
+            if sessionShouldEnd && not model.isComplete && model.currentPosition > 0 then
+                -- Start grace period only if actively typing (currentPosition > 0)
                 ( { updatedModel 
                     | sessionState = SessionGracePeriod
                     , gracePeriodStartTime = Just time
                   }, Task.attempt (\_ -> FocusTypingArea) (Dom.focus "typing-area") )
-            else if sessionShouldEnd && model.isComplete then
-                -- End session immediately if text is complete
+            else if sessionShouldEnd then
+                -- End session immediately if text is complete or no typing started
                 ( { updatedModel | sessionState = SessionCompleted }, Cmd.none )
             else
                 ( updatedModel, Cmd.none )
@@ -429,7 +420,6 @@ update msg model =
             ( { model 
                 | sessionState = SessionActive
                 , sessionStartTime = Nothing  -- Will be set on first correct keystroke
-                , completedSessions = 0
                 , textRetryCount = 0  -- Reset retry count for new session
                 , sessionTotalScore = 0  -- Reset score for new session
                 , lastTextScore = 0
@@ -441,7 +431,6 @@ update msg model =
             ( { model 
                 | sessionState = SessionNotStarted
                 , sessionStartTime = Nothing
-                , completedSessions = 0
                 , gracePeriodStartTime = Nothing
                 , textRetryCount = 0
                 , sessionTotalScore = 0
@@ -747,8 +736,6 @@ viewSessionTimer model =
                                     Nothing -> "⏱️ " ++ formatSessionTime (calculateSessionTimeLeft model) ++ " (타이핑 시작 대기중)"
                                     Just _ -> "⏱️ " ++ formatSessionTime (calculateSessionTimeLeft model)
                             ) ]
-                        , div [ class "session-completed-compact" ]
-                            [ text ("✅ " ++ String.fromInt model.completedSessions ++ "개 완성") ]
                         , div [ class "session-score-compact" ]
                             [ text ("🎯 " ++ String.fromInt model.sessionTotalScore ++ "점") ]
                         , if model.lastTextScore > 0 then
@@ -768,7 +755,11 @@ viewSessionTimer model =
                 div [ class "session-completed" ]
                     [ h3 [] [ text "🎉 세션 완료!" ]
                     , div [ class "session-results" ]
-                        [ p [] [ text (String.fromInt model.selectedSessionDuration ++ "분 동안 " ++ String.fromInt model.completedSessions ++ "개의 지문을 완성했습니다!") ]
+                        [ div [ class "final-score" ]
+                            [ h2 [] [ text "최종 점수" ]
+                            , div [ class "score-display" ] [ text (String.fromInt model.sessionTotalScore ++ "점") ]
+                            ]
+                        , p [] [ text (String.fromInt model.selectedSessionDuration ++ "분 세션이 완료되었습니다!") ]
                         , div [ class "session-actions" ]
                             [ button [ onClick StartSession, class "btn-session-start" ] [ text "새 세션 시작" ]
                             , button [ onClick EndSession, class "btn-session-stop" ] [ text "종료" ]
