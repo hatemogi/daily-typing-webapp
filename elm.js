@@ -6549,7 +6549,7 @@ var $author$project$Main$calculateMaxLives = F2(
 	function (model, targetText) {
 		var wordCount = $elm$core$List$length(
 			$elm$core$String$words(targetText));
-		return A2($elm$core$Basics$max, 1, (wordCount / 15) | 0);
+		return 3 + ((wordCount / 30) | 0);
 	});
 var $elm$core$List$drop = F2(
 	function (n, list) {

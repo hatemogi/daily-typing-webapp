@@ -385,7 +385,7 @@ calculateMaxLives model targetText =
                 |> String.words
                 |> List.length
     in
-    Basics.max 1 (wordCount // 15)
+    3 + (wordCount // 30)
 
 
 viewLives : Model -> String -> List (Html Msg)
