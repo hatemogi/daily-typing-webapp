@@ -6964,7 +6964,13 @@ var $author$project$Main$update = F2(
 							sessionStartTime: $elm$core$Maybe$Just(model.currentTime),
 							sessionState: $author$project$Main$SessionActive
 						}),
-					$elm$core$Platform$Cmd$none);
+					A2(
+						$elm$random$Random$generate,
+						$author$project$Main$GotRandomIndex,
+						A2(
+							$elm$random$Random$int,
+							0,
+							$elm$core$List$length(model.meditations) - 1)));
 			case 'EndSession':
 				return _Utils_Tuple2(
 					_Utils_update(
@@ -7190,22 +7196,15 @@ var $author$project$Main$viewSessionTimer = function (model) {
 							$elm$html$Html$div,
 							_List_fromArray(
 								[
-									$elm$html$Html$Attributes$class('session-active')
+									$elm$html$Html$Attributes$class('session-active-compact')
 								]),
 							_List_fromArray(
 								[
 									A2(
-									$elm$html$Html$h3,
-									_List_Nil,
-									_List_fromArray(
-										[
-											$elm$html$Html$text('⏱️ 세션 진행중')
-										])),
-									A2(
 									$elm$html$Html$div,
 									_List_fromArray(
 										[
-											$elm$html$Html$Attributes$class('session-info')
+											$elm$html$Html$Attributes$class('session-info-compact')
 										]),
 									_List_fromArray(
 										[
@@ -7213,36 +7212,36 @@ var $author$project$Main$viewSessionTimer = function (model) {
 											$elm$html$Html$div,
 											_List_fromArray(
 												[
-													$elm$html$Html$Attributes$class('session-time')
+													$elm$html$Html$Attributes$class('session-time-compact')
 												]),
 											_List_fromArray(
 												[
 													$elm$html$Html$text(
-													'남은 시간: ' + $author$project$Main$formatSessionTime(
+													'⏱️ ' + $author$project$Main$formatSessionTime(
 														$author$project$Main$calculateSessionTimeLeft(model)))
 												])),
 											A2(
 											$elm$html$Html$div,
 											_List_fromArray(
 												[
-													$elm$html$Html$Attributes$class('session-completed')
+													$elm$html$Html$Attributes$class('session-completed-compact')
 												]),
 											_List_fromArray(
 												[
 													$elm$html$Html$text(
-													'완성한 지문: ' + ($elm$core$String$fromInt(model.completedSessions) + '개'))
+													'✅ ' + ($elm$core$String$fromInt(model.completedSessions) + '개 완성'))
+												])),
+											A2(
+											$elm$html$Html$button,
+											_List_fromArray(
+												[
+													$elm$html$Html$Events$onClick($author$project$Main$EndSession),
+													$elm$html$Html$Attributes$class('btn-session-stop-compact')
+												]),
+											_List_fromArray(
+												[
+													$elm$html$Html$text('종료')
 												]))
-										])),
-									A2(
-									$elm$html$Html$button,
-									_List_fromArray(
-										[
-											$elm$html$Html$Events$onClick($author$project$Main$EndSession),
-											$elm$html$Html$Attributes$class('btn-session-stop')
-										]),
-									_List_fromArray(
-										[
-											$elm$html$Html$text('세션 종료')
 										]))
 								]));
 					default:
@@ -7695,23 +7694,39 @@ var $author$project$Main$view = function (model) {
 					[
 						$elm$html$Html$text('명상록으로 하루를 시작하세요')
 					])),
-				$author$project$Main$viewSessionTimer(model),
 				function () {
-				var _v0 = model.currentMeditation;
-				if (_v0.$ === 'Nothing') {
-					return A2(
-						$elm$html$Html$div,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$class('loading')
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text('명상록을 불러오는 중...')
-							]));
-				} else {
-					var meditation = _v0.a;
-					return A2($author$project$Main$viewTypingPractice, model, meditation);
+				var _v0 = model.sessionState;
+				switch (_v0.$) {
+					case 'SessionNotStarted':
+						return $author$project$Main$viewSessionTimer(model);
+					case 'SessionActive':
+						return A2(
+							$elm$html$Html$div,
+							_List_Nil,
+							_List_fromArray(
+								[
+									$author$project$Main$viewSessionTimer(model),
+									function () {
+									var _v1 = model.currentMeditation;
+									if (_v1.$ === 'Nothing') {
+										return A2(
+											$elm$html$Html$div,
+											_List_fromArray(
+												[
+													$elm$html$Html$Attributes$class('loading')
+												]),
+											_List_fromArray(
+												[
+													$elm$html$Html$text('명상록을 불러오는 중...')
+												]));
+									} else {
+										var meditation = _v1.a;
+										return A2($author$project$Main$viewTypingPractice, model, meditation);
+									}
+								}()
+								]));
+					default:
+						return $author$project$Main$viewSessionTimer(model);
 				}
 			}()
 			]));

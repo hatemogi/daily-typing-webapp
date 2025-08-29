@@ -378,6 +378,46 @@
             border-radius: 3px;
         }
 
+        .session-active-compact {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+        }
+
+        .session-info-compact {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .session-time-compact, .session-completed-compact {
+            font-size: 1em;
+            font-weight: 500;
+        }
+
+        .btn-session-stop-compact {
+            padding: 8px 16px;
+            font-size: 0.9em;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-weight: 600;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            transition: all 0.3s ease;
+        }
+
+        .btn-session-stop-compact:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-1px);
+        }
+
         @media (max-width: 768px) {
             .container {
                 margin: 10px;

@@ -370,7 +370,7 @@ update msg model =
                 , sessionStartTime = Just model.currentTime
                 , completedSessions = 0
               }
-            , Cmd.none
+            , Random.generate GotRandomIndex (Random.int 0 (List.length model.meditations - 1))
             )
 
         EndSession ->
@@ -494,13 +494,23 @@ view model =
     div [ class "container" ]
         [ h1 [ class "title" ] [ text "Daily Typing Practice" ]
         , h2 [ class "subtitle" ] [ text "명상록으로 하루를 시작하세요" ]
-        , viewSessionTimer model
-        , case model.currentMeditation of
-            Nothing ->
-                div [ class "loading" ] [ text "명상록을 불러오는 중..." ]
+        , case model.sessionState of
+            SessionNotStarted ->
+                viewSessionTimer model
             
-            Just meditation ->
-                viewTypingPractice model meditation
+            SessionActive ->
+                div []
+                    [ viewSessionTimer model
+                    , case model.currentMeditation of
+                        Nothing ->
+                            div [ class "loading" ] [ text "명상록을 불러오는 중..." ]
+                        
+                        Just meditation ->
+                            viewTypingPractice model meditation
+                    ]
+            
+            SessionCompleted ->
+                viewSessionTimer model
         ]
 
 
@@ -584,15 +594,14 @@ viewSessionTimer model =
                     ]
             
             SessionActive ->
-                div [ class "session-active" ]
-                    [ h3 [] [ text "⏱️ 세션 진행중" ]
-                    , div [ class "session-info" ]
-                        [ div [ class "session-time" ]
-                            [ text ("남은 시간: " ++ formatSessionTime (calculateSessionTimeLeft model)) ]
-                        , div [ class "session-completed" ]
-                            [ text ("완성한 지문: " ++ String.fromInt model.completedSessions ++ "개") ]
+                div [ class "session-active-compact" ]
+                    [ div [ class "session-info-compact" ]
+                        [ div [ class "session-time-compact" ]
+                            [ text ("⏱️ " ++ formatSessionTime (calculateSessionTimeLeft model)) ]
+                        , div [ class "session-completed-compact" ]
+                            [ text ("✅ " ++ String.fromInt model.completedSessions ++ "개 완성") ]
+                        , button [ onClick EndSession, class "btn-session-stop-compact" ] [ text "종료" ]
                         ]
-                    , button [ onClick EndSession, class "btn-session-stop" ] [ text "세션 종료" ]
                     ]
             
             SessionCompleted ->
