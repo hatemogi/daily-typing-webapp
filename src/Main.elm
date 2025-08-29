@@ -547,7 +547,8 @@ view model =
             
             SessionGracePeriod ->
                 div []
-                    [ case model.currentMeditation of
+                    [ viewSessionTimer model
+                    , case model.currentMeditation of
                         Nothing ->
                             div [ class "loading" ] [ text "명상록을 불러오는 중..." ]
                         
