@@ -37,7 +37,6 @@ type alias Model =
     , sessionState : SessionState
     , sessionStartTime : Maybe Time.Posix
     , selectedSessionDuration : Int  -- in minutes
-    , gracePeriodStartTime : Maybe Time.Posix
     , textRetryCount : Int  -- Number of retries for current text
     , sessionTotalScore : Int  -- Total score for current session
     , lastTextScore : Int  -- Score for the last completed text
@@ -47,7 +46,6 @@ type alias Model =
 type SessionState
     = SessionNotStarted
     | SessionActive
-    | SessionGracePeriod  -- New state for grace period
     | SessionCompleted
 
 type alias Meditation =
@@ -85,8 +83,7 @@ init _ =
       , endTime = Nothing
       , sessionState = SessionNotStarted
       , sessionStartTime = Nothing
-      , selectedSessionDuration = 10  -- default 10 minutes
-      , gracePeriodStartTime = Nothing
+      , selectedSessionDuration = 5  -- default 5 minutes
       , textRetryCount = 0
       , sessionTotalScore = 0
       , lastTextScore = 0
@@ -309,17 +306,8 @@ update msg model =
                             let
                                 newRetryCount = model.textRetryCount + 1
                                 
-                                newSessionState = 
-                                    if model.sessionState == SessionGracePeriod then
-                                        SessionCompleted
-                                    else
-                                        model.sessionState
-                                
-                                newSessionEndTime = 
-                                    if model.sessionState == SessionGracePeriod then
-                                        Just model.currentTime
-                                    else
-                                        model.sessionEndTime
+                                newSessionState = model.sessionState
+                                newSessionEndTime = model.sessionEndTime
                                 
                                 shouldLoadNextText = 
                                     (model.sessionState == SessionActive) && (newRetryCount > 1)
@@ -348,23 +336,13 @@ update msg model =
                                 -- Calculate score for completed text
                                 textScore = calculateTextScore meditation.text result.mistakes model.textRetryCount
                                 newTotalScore = 
-                                    if model.sessionState == SessionActive || model.sessionState == SessionGracePeriod then
+                                    if model.sessionState == SessionActive then
                                         model.sessionTotalScore + textScore
                                     else
                                         model.sessionTotalScore
                                 
-                                -- End session when text is completed during grace period
-                                newSessionState =
-                                    if model.sessionState == SessionGracePeriod then
-                                        SessionCompleted
-                                    else
-                                        model.sessionState
-                                
-                                newSessionEndTime = 
-                                    if model.sessionState == SessionGracePeriod then
-                                        Just model.currentTime
-                                    else
-                                        model.sessionEndTime
+                                newSessionState = model.sessionState
+                                newSessionEndTime = model.sessionEndTime
                             in
                             let
                                 shouldLoadNextText = model.sessionState == SessionActive
@@ -420,14 +398,8 @@ update msg model =
                             False
                 
             in
-            if sessionShouldEnd && not model.isComplete && model.currentPosition > 0 then
-                -- Start grace period only if actively typing (currentPosition > 0)
-                ( { updatedModel 
-                    | sessionState = SessionGracePeriod
-                    , gracePeriodStartTime = Just time
-                  }, Task.attempt (\_ -> FocusTypingArea) (Dom.focus "typing-area") )
-            else if sessionShouldEnd then
-                -- End session immediately if text is complete or no typing started
+            if sessionShouldEnd then
+                -- End session immediately when time expires
                 ( { updatedModel 
                     | sessionState = SessionCompleted 
                     , sessionEndTime = Just time
@@ -451,8 +423,7 @@ update msg model =
             ( { model 
                 | sessionState = SessionNotStarted
                 , sessionStartTime = Nothing
-                , gracePeriodStartTime = Nothing
-                , textRetryCount = 0
+                          , textRetryCount = 0
                 , sessionTotalScore = 0
                 , lastTextScore = 0
                 , sessionEndTime = Nothing
@@ -657,19 +628,6 @@ view model =
                             viewTypingPractice model meditation
                     ]
             
-            SessionGracePeriod ->
-                div []
-                    [ viewSessionTimer model
-                    , div [ class "grace-period-message" ]
-                        [ text "⏰ 세션 시간이 종료되었습니다. 남은 기회동안 계속 입력해주세요!" ]
-                    , case model.currentMeditation of
-                        Nothing ->
-                            div [ class "loading" ] [ text "명상록을 불러오는 중..." ]
-                        
-                        Just meditation ->
-                            viewTypingPractice model meditation
-                    ]
-            
             SessionCompleted ->
                 viewSessionTimer model
         ]
@@ -748,11 +706,6 @@ viewSessionTimer model =
                         [ h4 [] [ text "세션 시간 선택:" ]
                         , div [ class "duration-buttons" ]
                             [ button 
-                                [ onClick (SelectSessionDuration 1)
-                                , class (if model.selectedSessionDuration == 1 then "btn-duration active" else "btn-duration")
-                                ] 
-                                [ text "1분" ]
-                            , button 
                                 [ onClick (SelectSessionDuration 5)
                                 , class (if model.selectedSessionDuration == 5 then "btn-duration active" else "btn-duration")
                                 ] 
@@ -792,10 +745,6 @@ viewSessionTimer model =
                         , button [ onClick EndSession, class "btn-session-stop-compact" ] [ text "종료" ]
                         ]
                     ]
-            
-            SessionGracePeriod ->
-                -- Don't show timer during grace period
-                text ""
             
             SessionCompleted ->
                 div [ class "session-completed" ]

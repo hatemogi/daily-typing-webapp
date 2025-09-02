@@ -6242,12 +6242,11 @@ var $author$project$Main$init = function (_v0) {
 			currentPosition: 0,
 			currentTime: $elm$time$Time$millisToPosix(0),
 			endTime: $elm$core$Maybe$Nothing,
-			gracePeriodStartTime: $elm$core$Maybe$Nothing,
 			isComplete: false,
 			lastTextScore: 0,
 			meditations: _List_Nil,
 			mistakes: 0,
-			selectedSessionDuration: 10,
+			selectedSessionDuration: 5,
 			sessionEndTime: $elm$core$Maybe$Nothing,
 			sessionStartTime: $elm$core$Maybe$Nothing,
 			sessionState: $author$project$Main$SessionNotStarted,
@@ -6536,7 +6535,6 @@ var $author$project$Main$GotRandomIndex = function (a) {
 };
 var $author$project$Main$SessionActive = {$: 'SessionActive'};
 var $author$project$Main$SessionCompleted = {$: 'SessionCompleted'};
-var $author$project$Main$SessionGracePeriod = {$: 'SessionGracePeriod'};
 var $elm$core$Task$onError = _Scheduler_onError;
 var $elm$core$Task$attempt = F2(
 	function (resultToMessage, task) {
@@ -6929,8 +6927,8 @@ var $author$project$Main$update = F2(
 									$elm$core$String$length(meditation.text)) > -1;
 								var newEndTime = isComplete ? $elm$core$Maybe$Just(model.currentTime) : model.endTime;
 								if (mistakeLimitExceeded) {
-									var newSessionState = _Utils_eq(model.sessionState, $author$project$Main$SessionGracePeriod) ? $author$project$Main$SessionCompleted : model.sessionState;
-									var newSessionEndTime = _Utils_eq(model.sessionState, $author$project$Main$SessionGracePeriod) ? $elm$core$Maybe$Just(model.currentTime) : model.sessionEndTime;
+									var newSessionState = model.sessionState;
+									var newSessionEndTime = model.sessionEndTime;
 									var newRetryCount = model.textRetryCount + 1;
 									var shouldLoadNextText = _Utils_eq(model.sessionState, $author$project$Main$SessionActive) && (newRetryCount > 1);
 									var updatedModel = _Utils_update(
@@ -6959,9 +6957,9 @@ var $author$project$Main$update = F2(
 								} else {
 									if (isComplete) {
 										var textScore = A3($author$project$Main$calculateTextScore, meditation.text, result.mistakes, model.textRetryCount);
-										var newTotalScore = (_Utils_eq(model.sessionState, $author$project$Main$SessionActive) || _Utils_eq(model.sessionState, $author$project$Main$SessionGracePeriod)) ? (model.sessionTotalScore + textScore) : model.sessionTotalScore;
-										var newSessionState = _Utils_eq(model.sessionState, $author$project$Main$SessionGracePeriod) ? $author$project$Main$SessionCompleted : model.sessionState;
-										var newSessionEndTime = _Utils_eq(model.sessionState, $author$project$Main$SessionGracePeriod) ? $elm$core$Maybe$Just(model.currentTime) : model.sessionEndTime;
+										var newTotalScore = _Utils_eq(model.sessionState, $author$project$Main$SessionActive) ? (model.sessionTotalScore + textScore) : model.sessionTotalScore;
+										var newSessionState = model.sessionState;
+										var newSessionEndTime = model.sessionEndTime;
 										var updatedModel = _Utils_update(
 											model,
 											{correctedPositions: _List_Nil, currentPosition: 0, endTime: $elm$core$Maybe$Nothing, isComplete: false, lastTextScore: textScore, mistakes: 0, sessionEndTime: newSessionEndTime, sessionState: newSessionState, sessionTotalScore: newTotalScore, startTime: $elm$core$Maybe$Nothing, textRetryCount: 0, userInput: ''});
@@ -6993,10 +6991,10 @@ var $author$project$Main$update = F2(
 					model,
 					{currentTime: time});
 				var sessionShouldEnd = function () {
-					var _v6 = _Utils_Tuple2(model.sessionState, model.sessionStartTime);
-					if ((_v6.a.$ === 'SessionActive') && (_v6.b.$ === 'Just')) {
-						var _v7 = _v6.a;
-						var startTime = _v6.b.a;
+					var _v5 = _Utils_Tuple2(model.sessionState, model.sessionStartTime);
+					if ((_v5.a.$ === 'SessionActive') && (_v5.b.$ === 'Just')) {
+						var _v6 = _v5.a;
+						var startTime = _v5.b.a;
 						var durationMillis = (model.selectedSessionDuration * 60) * 1000;
 						return _Utils_cmp(
 							$elm$time$Time$posixToMillis(time) - $elm$time$Time$posixToMillis(startTime),
@@ -7005,26 +7003,14 @@ var $author$project$Main$update = F2(
 						return false;
 					}
 				}();
-				return (sessionShouldEnd && ((!model.isComplete) && (model.currentPosition > 0))) ? _Utils_Tuple2(
-					_Utils_update(
-						updatedModel,
-						{
-							gracePeriodStartTime: $elm$core$Maybe$Just(time),
-							sessionState: $author$project$Main$SessionGracePeriod
-						}),
-					A2(
-						$elm$core$Task$attempt,
-						function (_v5) {
-							return $author$project$Main$FocusTypingArea;
-						},
-						$elm$browser$Browser$Dom$focus('typing-area'))) : (sessionShouldEnd ? _Utils_Tuple2(
+				return sessionShouldEnd ? _Utils_Tuple2(
 					_Utils_update(
 						updatedModel,
 						{
 							sessionEndTime: $elm$core$Maybe$Just(time),
 							sessionState: $author$project$Main$SessionCompleted
 						}),
-					$elm$core$Platform$Cmd$none) : _Utils_Tuple2(updatedModel, $elm$core$Platform$Cmd$none));
+					$elm$core$Platform$Cmd$none) : _Utils_Tuple2(updatedModel, $elm$core$Platform$Cmd$none);
 			case 'StartSession':
 				return _Utils_Tuple2(
 					_Utils_update(
@@ -7041,7 +7027,7 @@ var $author$project$Main$update = F2(
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{gracePeriodStartTime: $elm$core$Maybe$Nothing, lastTextScore: 0, sessionEndTime: $elm$core$Maybe$Nothing, sessionStartTime: $elm$core$Maybe$Nothing, sessionState: $author$project$Main$SessionNotStarted, sessionTotalScore: 0, textRetryCount: 0}),
+						{lastTextScore: 0, sessionEndTime: $elm$core$Maybe$Nothing, sessionStartTime: $elm$core$Maybe$Nothing, sessionState: $author$project$Main$SessionNotStarted, sessionTotalScore: 0, textRetryCount: 0}),
 					$elm$core$Platform$Cmd$none);
 			default:
 				var minutes = msg.a;
@@ -7246,19 +7232,6 @@ var $author$project$Main$viewSessionTimer = function (model) {
 													_List_fromArray(
 														[
 															$elm$html$Html$Events$onClick(
-															$author$project$Main$SelectSessionDuration(1)),
-															$elm$html$Html$Attributes$class(
-															(model.selectedSessionDuration === 1) ? 'btn-duration active' : 'btn-duration')
-														]),
-													_List_fromArray(
-														[
-															$elm$html$Html$text('1분')
-														])),
-													A2(
-													$elm$html$Html$button,
-													_List_fromArray(
-														[
-															$elm$html$Html$Events$onClick(
 															$author$project$Main$SelectSessionDuration(5)),
 															$elm$html$Html$Attributes$class(
 															(model.selectedSessionDuration === 5) ? 'btn-duration active' : 'btn-duration')
@@ -7380,8 +7353,6 @@ var $author$project$Main$viewSessionTimer = function (model) {
 												]))
 										]))
 								]));
-					case 'SessionGracePeriod':
-						return $elm$html$Html$text('');
 					default:
 						return A2(
 							$elm$html$Html$div,
@@ -7896,42 +7867,6 @@ var $author$project$Main$view = function (model) {
 												]));
 									} else {
 										var meditation = _v1.a;
-										return A2($author$project$Main$viewTypingPractice, model, meditation);
-									}
-								}()
-								]));
-					case 'SessionGracePeriod':
-						return A2(
-							$elm$html$Html$div,
-							_List_Nil,
-							_List_fromArray(
-								[
-									$author$project$Main$viewSessionTimer(model),
-									A2(
-									$elm$html$Html$div,
-									_List_fromArray(
-										[
-											$elm$html$Html$Attributes$class('grace-period-message')
-										]),
-									_List_fromArray(
-										[
-											$elm$html$Html$text('⏰ 세션 시간이 종료되었습니다. 남은 기회동안 계속 입력해주세요!')
-										])),
-									function () {
-									var _v2 = model.currentMeditation;
-									if (_v2.$ === 'Nothing') {
-										return A2(
-											$elm$html$Html$div,
-											_List_fromArray(
-												[
-													$elm$html$Html$Attributes$class('loading')
-												]),
-											_List_fromArray(
-												[
-													$elm$html$Html$text('명상록을 불러오는 중...')
-												]));
-									} else {
-										var meditation = _v2.a;
 										return A2($author$project$Main$viewTypingPractice, model, meditation);
 									}
 								}()
