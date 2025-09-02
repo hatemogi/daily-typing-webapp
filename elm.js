@@ -6237,7 +6237,6 @@ var $elm$time$Time$millisToPosix = $elm$time$Time$Posix;
 var $author$project$Main$init = function (_v0) {
 	return _Utils_Tuple2(
 		{
-			completedSessions: 0,
 			correctedPositions: _List_Nil,
 			currentMeditation: $elm$core$Maybe$Nothing,
 			currentPosition: 0,
@@ -6245,12 +6244,16 @@ var $author$project$Main$init = function (_v0) {
 			endTime: $elm$core$Maybe$Nothing,
 			gracePeriodStartTime: $elm$core$Maybe$Nothing,
 			isComplete: false,
+			lastTextScore: 0,
 			meditations: _List_Nil,
 			mistakes: 0,
 			selectedSessionDuration: 10,
+			sessionEndTime: $elm$core$Maybe$Nothing,
 			sessionStartTime: $elm$core$Maybe$Nothing,
 			sessionState: $author$project$Main$SessionNotStarted,
+			sessionTotalScore: 0,
 			startTime: $elm$core$Maybe$Nothing,
+			textRetryCount: 0,
 			userInput: ''
 		},
 		$author$project$Main$loadMeditations);
@@ -6560,6 +6563,28 @@ var $author$project$Main$calculateMaxLives = F2(
 			$elm$core$String$words(targetText));
 		return 3 + ((wordCount / 30) | 0);
 	});
+var $elm$core$Basics$round = _Basics_round;
+var $author$project$Main$calculateTextScore = F3(
+	function (text, mistakes, retryCount) {
+		var wordCount = $elm$core$List$length(
+			$elm$core$String$words(text));
+		var retryMultiplier = 1.0;
+		var baseScore = wordCount * 10;
+		var accuracyMultiplier = function () {
+			switch (mistakes) {
+				case 0:
+					return 2.0;
+				case 1:
+					return 1.5;
+				case 2:
+					return 1.25;
+				default:
+					return 1.0;
+			}
+		}();
+		var finalScore = $elm$core$Basics$round((baseScore * accuracyMultiplier) * retryMultiplier);
+		return A2($elm$core$Basics$max, 0, finalScore);
+	});
 var $elm$core$List$drop = F2(
 	function (n, list) {
 		drop:
@@ -6837,92 +6862,124 @@ var $author$project$Main$update = F2(
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				} else {
 					var meditation = _v2.a;
-					if (model.isComplete && (key === 'Enter')) {
-						var newSessionState = _Utils_eq(model.sessionState, $author$project$Main$SessionGracePeriod) ? $author$project$Main$SessionCompleted : model.sessionState;
-						var newCompletedSessions = (_Utils_eq(model.sessionState, $author$project$Main$SessionActive) || _Utils_eq(model.sessionState, $author$project$Main$SessionGracePeriod)) ? (model.completedSessions + 1) : model.completedSessions;
-						var updatedModel = _Utils_update(
-							model,
-							{completedSessions: newCompletedSessions, correctedPositions: _List_Nil, currentPosition: 0, endTime: $elm$core$Maybe$Nothing, isComplete: false, mistakes: 0, sessionState: newSessionState, startTime: $elm$core$Maybe$Nothing, userInput: ''});
-						var shouldLoadNextText = _Utils_eq(model.sessionState, $author$project$Main$SessionActive);
-						return shouldLoadNextText ? _Utils_Tuple2(
-							updatedModel,
-							A2(
-								$elm$random$Random$generate,
-								$author$project$Main$GotRandomIndex,
-								A2(
-									$elm$random$Random$int,
-									0,
-									$elm$core$List$length(model.meditations) - 1))) : _Utils_Tuple2(updatedModel, $elm$core$Platform$Cmd$none);
+					if (model.isComplete) {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					} else {
-						if (model.isComplete) {
+						if ($author$project$Main$isModifierKey(key)) {
 							return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 						} else {
-							if ($author$project$Main$isModifierKey(key)) {
+							if (key === 'Backspace') {
 								return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 							} else {
-								if (key === 'Backspace') {
-									return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+								var targetChar = A3($elm$core$String$slice, model.currentPosition, model.currentPosition + 1, meditation.text);
+								var isFirstCharacter = !model.currentPosition;
+								var isCorrect = _Utils_eq(
+									$elm$core$String$toLower(key),
+									$elm$core$String$toLower(targetChar));
+								var result = function () {
+									if ((targetChar === ' ') && (key === ' ')) {
+										return {correctedPositions: model.correctedPositions, mistakes: model.mistakes, position: model.currentPosition + 1, userInput: model.userInput + ' '};
+									} else {
+										if ((targetChar === ' ') && (key !== ' ')) {
+											var wasAlreadyIncorrect = A2($elm$core$List$member, model.currentPosition + 1, model.correctedPositions);
+											var nextTargetChar = A3($elm$core$String$slice, model.currentPosition + 1, model.currentPosition + 2, meditation.text);
+											var nextIsCorrect = _Utils_eq(
+												$elm$core$String$toLower(key),
+												$elm$core$String$toLower(nextTargetChar));
+											var newPosition = nextIsCorrect ? (model.currentPosition + 2) : (model.currentPosition + 1);
+											var newInput = nextIsCorrect ? (model.userInput + (' ' + key)) : (model.userInput + ' ');
+											var isNewMistake = (!nextIsCorrect) && (!wasAlreadyIncorrect);
+											var newCorrectedPositions = isNewMistake ? A2($elm$core$List$cons, model.currentPosition + 1, model.correctedPositions) : model.correctedPositions;
+											var newMistakes = isNewMistake ? (model.mistakes + 1) : model.mistakes;
+											return {correctedPositions: newCorrectedPositions, mistakes: newMistakes, position: newPosition, userInput: newInput};
+										} else {
+											var wasAlreadyIncorrect = A2($elm$core$List$member, model.currentPosition, model.correctedPositions);
+											var newUserInput = isCorrect ? _Utils_ap(model.userInput, key) : model.userInput;
+											var newPosition = isCorrect ? (model.currentPosition + 1) : model.currentPosition;
+											var isNewMistake = (!isCorrect) && ((!wasAlreadyIncorrect) && (!isFirstCharacter));
+											var newCorrectedPositions = isNewMistake ? A2($elm$core$List$cons, model.currentPosition, model.correctedPositions) : model.correctedPositions;
+											var newMistakes = isNewMistake ? (model.mistakes + 1) : model.mistakes;
+											return {correctedPositions: newCorrectedPositions, mistakes: newMistakes, position: newPosition, userInput: newUserInput};
+										}
+									}
+								}();
+								var mistakeLimitExceeded = _Utils_cmp(
+									result.mistakes,
+									A2($author$project$Main$calculateMaxLives, model, meditation.text)) > -1;
+								var newSessionStartTime = function () {
+									var _v4 = model.sessionStartTime;
+									if (_v4.$ === 'Nothing') {
+										return ((_Utils_cmp(result.position, model.currentPosition) > 0) && _Utils_eq(model.sessionState, $author$project$Main$SessionActive)) ? $elm$core$Maybe$Just(model.currentTime) : $elm$core$Maybe$Nothing;
+									} else {
+										var time = _v4.a;
+										return $elm$core$Maybe$Just(time);
+									}
+								}();
+								var newStartTime = function () {
+									var _v3 = model.startTime;
+									if (_v3.$ === 'Nothing') {
+										return (_Utils_cmp(result.position, model.currentPosition) > 0) ? $elm$core$Maybe$Just(model.currentTime) : $elm$core$Maybe$Nothing;
+									} else {
+										var time = _v3.a;
+										return $elm$core$Maybe$Just(time);
+									}
+								}();
+								var isComplete = _Utils_cmp(
+									result.position,
+									$elm$core$String$length(meditation.text)) > -1;
+								var newEndTime = isComplete ? $elm$core$Maybe$Just(model.currentTime) : model.endTime;
+								if (mistakeLimitExceeded) {
+									var newSessionState = _Utils_eq(model.sessionState, $author$project$Main$SessionGracePeriod) ? $author$project$Main$SessionCompleted : model.sessionState;
+									var newSessionEndTime = _Utils_eq(model.sessionState, $author$project$Main$SessionGracePeriod) ? $elm$core$Maybe$Just(model.currentTime) : model.sessionEndTime;
+									var newRetryCount = model.textRetryCount + 1;
+									var shouldLoadNextText = _Utils_eq(model.sessionState, $author$project$Main$SessionActive) && (newRetryCount > 1);
+									var updatedModel = _Utils_update(
+										model,
+										{
+											correctedPositions: _List_Nil,
+											currentPosition: 0,
+											endTime: $elm$core$Maybe$Nothing,
+											isComplete: false,
+											mistakes: 0,
+											sessionEndTime: newSessionEndTime,
+											sessionState: newSessionState,
+											startTime: $elm$core$Maybe$Nothing,
+											textRetryCount: shouldLoadNextText ? 0 : newRetryCount,
+											userInput: ''
+										});
+									return shouldLoadNextText ? _Utils_Tuple2(
+										updatedModel,
+										A2(
+											$elm$random$Random$generate,
+											$author$project$Main$GotRandomIndex,
+											A2(
+												$elm$random$Random$int,
+												0,
+												$elm$core$List$length(model.meditations) - 1))) : _Utils_Tuple2(updatedModel, $elm$core$Platform$Cmd$none);
 								} else {
-									var targetChar = A3($elm$core$String$slice, model.currentPosition, model.currentPosition + 1, meditation.text);
-									var isFirstCharacter = !model.currentPosition;
-									var isCorrect = _Utils_eq(
-										$elm$core$String$toLower(key),
-										$elm$core$String$toLower(targetChar));
-									var result = function () {
-										if ((targetChar === ' ') && (key === ' ')) {
-											return {correctedPositions: model.correctedPositions, mistakes: model.mistakes, position: model.currentPosition + 1, userInput: model.userInput + ' '};
-										} else {
-											if ((targetChar === ' ') && (key !== ' ')) {
-												var wasAlreadyIncorrect = A2($elm$core$List$member, model.currentPosition + 1, model.correctedPositions);
-												var nextTargetChar = A3($elm$core$String$slice, model.currentPosition + 1, model.currentPosition + 2, meditation.text);
-												var nextIsCorrect = _Utils_eq(
-													$elm$core$String$toLower(key),
-													$elm$core$String$toLower(nextTargetChar));
-												var newPosition = nextIsCorrect ? (model.currentPosition + 2) : (model.currentPosition + 1);
-												var newInput = nextIsCorrect ? (model.userInput + (' ' + key)) : (model.userInput + ' ');
-												var isNewMistake = (!nextIsCorrect) && (!wasAlreadyIncorrect);
-												var newCorrectedPositions = isNewMistake ? A2($elm$core$List$cons, model.currentPosition + 1, model.correctedPositions) : model.correctedPositions;
-												var newMistakes = isNewMistake ? (model.mistakes + 1) : model.mistakes;
-												return {correctedPositions: newCorrectedPositions, mistakes: newMistakes, position: newPosition, userInput: newInput};
-											} else {
-												var wasAlreadyIncorrect = A2($elm$core$List$member, model.currentPosition, model.correctedPositions);
-												var newUserInput = isCorrect ? _Utils_ap(model.userInput, key) : model.userInput;
-												var newPosition = isCorrect ? (model.currentPosition + 1) : model.currentPosition;
-												var isNewMistake = (!isCorrect) && ((!wasAlreadyIncorrect) && (!isFirstCharacter));
-												var newCorrectedPositions = isNewMistake ? A2($elm$core$List$cons, model.currentPosition, model.correctedPositions) : model.correctedPositions;
-												var newMistakes = isNewMistake ? (model.mistakes + 1) : model.mistakes;
-												return {correctedPositions: newCorrectedPositions, mistakes: newMistakes, position: newPosition, userInput: newUserInput};
-											}
-										}
-									}();
-									var mistakeLimitExceeded = _Utils_cmp(
-										result.mistakes,
-										A2($author$project$Main$calculateMaxLives, model, meditation.text)) > -1;
-									var newStartTime = function () {
-										var _v3 = model.startTime;
-										if (_v3.$ === 'Nothing') {
-											return (_Utils_cmp(result.position, model.currentPosition) > 0) ? $elm$core$Maybe$Just(model.currentTime) : $elm$core$Maybe$Nothing;
-										} else {
-											var time = _v3.a;
-											return $elm$core$Maybe$Just(time);
-										}
-									}();
-									var isComplete = _Utils_cmp(
-										result.position,
-										$elm$core$String$length(meditation.text)) > -1;
-									var newEndTime = isComplete ? $elm$core$Maybe$Just(model.currentTime) : model.endTime;
-									if (mistakeLimitExceeded) {
+									if (isComplete) {
+										var textScore = A3($author$project$Main$calculateTextScore, meditation.text, result.mistakes, model.textRetryCount);
+										var newTotalScore = (_Utils_eq(model.sessionState, $author$project$Main$SessionActive) || _Utils_eq(model.sessionState, $author$project$Main$SessionGracePeriod)) ? (model.sessionTotalScore + textScore) : model.sessionTotalScore;
 										var newSessionState = _Utils_eq(model.sessionState, $author$project$Main$SessionGracePeriod) ? $author$project$Main$SessionCompleted : model.sessionState;
-										return _Utils_Tuple2(
-											_Utils_update(
-												model,
-												{correctedPositions: _List_Nil, currentPosition: 0, endTime: $elm$core$Maybe$Nothing, mistakes: 0, sessionState: newSessionState, startTime: $elm$core$Maybe$Nothing, userInput: ''}),
-											$elm$core$Platform$Cmd$none);
+										var newSessionEndTime = _Utils_eq(model.sessionState, $author$project$Main$SessionGracePeriod) ? $elm$core$Maybe$Just(model.currentTime) : model.sessionEndTime;
+										var updatedModel = _Utils_update(
+											model,
+											{correctedPositions: _List_Nil, currentPosition: 0, endTime: $elm$core$Maybe$Nothing, isComplete: false, lastTextScore: textScore, mistakes: 0, sessionEndTime: newSessionEndTime, sessionState: newSessionState, sessionTotalScore: newTotalScore, startTime: $elm$core$Maybe$Nothing, textRetryCount: 0, userInput: ''});
+										var shouldLoadNextText = _Utils_eq(model.sessionState, $author$project$Main$SessionActive);
+										return shouldLoadNextText ? _Utils_Tuple2(
+											updatedModel,
+											A2(
+												$elm$random$Random$generate,
+												$author$project$Main$GotRandomIndex,
+												A2(
+													$elm$random$Random$int,
+													0,
+													$elm$core$List$length(model.meditations) - 1))) : _Utils_Tuple2(updatedModel, $elm$core$Platform$Cmd$none);
 									} else {
 										return _Utils_Tuple2(
 											_Utils_update(
 												model,
-												{correctedPositions: result.correctedPositions, currentPosition: result.position, endTime: newEndTime, isComplete: isComplete, mistakes: result.mistakes, startTime: newStartTime, userInput: result.userInput}),
+												{correctedPositions: result.correctedPositions, currentPosition: result.position, endTime: newEndTime, isComplete: isComplete, mistakes: result.mistakes, sessionStartTime: newSessionStartTime, startTime: newStartTime, userInput: result.userInput}),
 											$elm$core$Platform$Cmd$none);
 									}
 								}
@@ -6930,28 +6987,16 @@ var $author$project$Main$update = F2(
 						}
 					}
 				}
-			case 'StartOver':
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{correctedPositions: _List_Nil, currentPosition: 0, endTime: $elm$core$Maybe$Nothing, isComplete: false, mistakes: 0, startTime: $elm$core$Maybe$Nothing, userInput: ''}),
-					A2(
-						$elm$random$Random$generate,
-						$author$project$Main$GotRandomIndex,
-						A2(
-							$elm$random$Random$int,
-							0,
-							$elm$core$List$length(model.meditations) - 1)));
 			case 'Tick':
 				var time = msg.a;
 				var updatedModel = _Utils_update(
 					model,
 					{currentTime: time});
 				var sessionShouldEnd = function () {
-					var _v4 = _Utils_Tuple2(model.sessionState, model.sessionStartTime);
-					if ((_v4.a.$ === 'SessionActive') && (_v4.b.$ === 'Just')) {
-						var _v5 = _v4.a;
-						var startTime = _v4.b.a;
+					var _v6 = _Utils_Tuple2(model.sessionState, model.sessionStartTime);
+					if ((_v6.a.$ === 'SessionActive') && (_v6.b.$ === 'Just')) {
+						var _v7 = _v6.a;
+						var startTime = _v6.b.a;
 						var durationMillis = (model.selectedSessionDuration * 60) * 1000;
 						return _Utils_cmp(
 							$elm$time$Time$posixToMillis(time) - $elm$time$Time$posixToMillis(startTime),
@@ -6960,27 +7005,31 @@ var $author$project$Main$update = F2(
 						return false;
 					}
 				}();
-				return (sessionShouldEnd && (!model.isComplete)) ? _Utils_Tuple2(
+				return (sessionShouldEnd && ((!model.isComplete) && (model.currentPosition > 0))) ? _Utils_Tuple2(
 					_Utils_update(
 						updatedModel,
 						{
 							gracePeriodStartTime: $elm$core$Maybe$Just(time),
 							sessionState: $author$project$Main$SessionGracePeriod
 						}),
-					$elm$core$Platform$Cmd$none) : ((sessionShouldEnd && model.isComplete) ? _Utils_Tuple2(
+					A2(
+						$elm$core$Task$attempt,
+						function (_v5) {
+							return $author$project$Main$FocusTypingArea;
+						},
+						$elm$browser$Browser$Dom$focus('typing-area'))) : (sessionShouldEnd ? _Utils_Tuple2(
 					_Utils_update(
 						updatedModel,
-						{sessionState: $author$project$Main$SessionCompleted}),
+						{
+							sessionEndTime: $elm$core$Maybe$Just(time),
+							sessionState: $author$project$Main$SessionCompleted
+						}),
 					$elm$core$Platform$Cmd$none) : _Utils_Tuple2(updatedModel, $elm$core$Platform$Cmd$none));
 			case 'StartSession':
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{
-							completedSessions: 0,
-							sessionStartTime: $elm$core$Maybe$Just(model.currentTime),
-							sessionState: $author$project$Main$SessionActive
-						}),
+						{lastTextScore: 0, sessionEndTime: $elm$core$Maybe$Nothing, sessionStartTime: $elm$core$Maybe$Nothing, sessionState: $author$project$Main$SessionActive, sessionTotalScore: 0, textRetryCount: 0}),
 					A2(
 						$elm$random$Random$generate,
 						$author$project$Main$GotRandomIndex,
@@ -6992,7 +7041,7 @@ var $author$project$Main$update = F2(
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{completedSessions: 0, gracePeriodStartTime: $elm$core$Maybe$Nothing, sessionStartTime: $elm$core$Maybe$Nothing, sessionState: $author$project$Main$SessionNotStarted}),
+						{gracePeriodStartTime: $elm$core$Maybe$Nothing, lastTextScore: 0, sessionEndTime: $elm$core$Maybe$Nothing, sessionStartTime: $elm$core$Maybe$Nothing, sessionState: $author$project$Main$SessionNotStarted, sessionTotalScore: 0, textRetryCount: 0}),
 					$elm$core$Platform$Cmd$none);
 			default:
 				var minutes = msg.a;
@@ -7023,20 +7072,58 @@ var $author$project$Main$SelectSessionDuration = function (a) {
 };
 var $author$project$Main$StartSession = {$: 'StartSession'};
 var $elm$html$Html$button = _VirtualDom_node('button');
+var $elm$core$String$fromFloat = _String_fromNumber;
+var $author$project$Main$calculateConcentrationScore = function (model) {
+	var _v0 = _Utils_Tuple2(model.sessionStartTime, model.sessionEndTime);
+	if ((_v0.a.$ === 'Just') && (_v0.b.$ === 'Just')) {
+		var startTime = _v0.a.a;
+		var endTime = _v0.b.a;
+		var elapsedMillis = $elm$time$Time$posixToMillis(endTime) - $elm$time$Time$posixToMillis(startTime);
+		var elapsedMinutes = elapsedMillis / (1000 * 60);
+		var pointsPerMinute = model.sessionTotalScore / elapsedMinutes;
+		var rounded = function (x) {
+			return x / 10;
+		}(
+			$elm$core$Basics$round(pointsPerMinute * 10));
+		return $elm$core$String$fromFloat(rounded);
+	} else {
+		return '0.0';
+	}
+};
+var $elm$core$Basics$modBy = _Basics_modBy;
+var $author$project$Main$calculateElapsedTime = function (model) {
+	var _v0 = _Utils_Tuple2(model.sessionStartTime, model.sessionEndTime);
+	if ((_v0.a.$ === 'Just') && (_v0.b.$ === 'Just')) {
+		var startTime = _v0.a.a;
+		var endTime = _v0.b.a;
+		var elapsedMillis = $elm$time$Time$posixToMillis(endTime) - $elm$time$Time$posixToMillis(startTime);
+		var totalSeconds = (elapsedMillis / 1000) | 0;
+		var minutes = (totalSeconds / 60) | 0;
+		var seconds = A2($elm$core$Basics$modBy, 60, totalSeconds);
+		return $elm$core$String$fromInt(minutes) + ('분 ' + ($elm$core$String$fromInt(seconds) + '초'));
+	} else {
+		return '0분 0초';
+	}
+};
 var $author$project$Main$calculateSessionTimeLeft = function (model) {
 	var _v0 = _Utils_Tuple2(model.sessionState, model.sessionStartTime);
-	if ((_v0.a.$ === 'SessionActive') && (_v0.b.$ === 'Just')) {
-		var _v1 = _v0.a;
-		var startTime = _v0.b.a;
-		var elapsed = $elm$time$Time$posixToMillis(model.currentTime) - $elm$time$Time$posixToMillis(startTime);
-		var durationMillis = (model.selectedSessionDuration * 60) * 1000;
-		var remaining = A2($elm$core$Basics$max, 0, durationMillis - elapsed);
-		return (remaining / 1000) | 0;
+	if (_v0.a.$ === 'SessionActive') {
+		if (_v0.b.$ === 'Just') {
+			var _v1 = _v0.a;
+			var startTime = _v0.b.a;
+			var elapsed = $elm$time$Time$posixToMillis(model.currentTime) - $elm$time$Time$posixToMillis(startTime);
+			var durationMillis = (model.selectedSessionDuration * 60) * 1000;
+			var remaining = A2($elm$core$Basics$max, 0, durationMillis - elapsed);
+			return (remaining / 1000) | 0;
+		} else {
+			var _v2 = _v0.a;
+			var _v3 = _v0.b;
+			return model.selectedSessionDuration * 60;
+		}
 	} else {
 		return model.selectedSessionDuration * 60;
 	}
 };
-var $elm$core$Basics$modBy = _Basics_modBy;
 var $elm$core$String$cons = _String_cons;
 var $elm$core$String$fromChar = function (_char) {
 	return A2($elm$core$String$cons, _char, '');
@@ -7247,20 +7334,39 @@ var $author$project$Main$viewSessionTimer = function (model) {
 											_List_fromArray(
 												[
 													$elm$html$Html$text(
-													'⏱️ ' + $author$project$Main$formatSessionTime(
-														$author$project$Main$calculateSessionTimeLeft(model)))
+													function () {
+														var _v1 = model.sessionStartTime;
+														if (_v1.$ === 'Nothing') {
+															return '⏱️ ' + ($author$project$Main$formatSessionTime(
+																$author$project$Main$calculateSessionTimeLeft(model)) + ' (타이핑 시작 대기중)');
+														} else {
+															return '⏱️ ' + $author$project$Main$formatSessionTime(
+																$author$project$Main$calculateSessionTimeLeft(model));
+														}
+													}())
 												])),
 											A2(
 											$elm$html$Html$div,
 											_List_fromArray(
 												[
-													$elm$html$Html$Attributes$class('session-completed-compact')
+													$elm$html$Html$Attributes$class('session-score-compact')
 												]),
 											_List_fromArray(
 												[
 													$elm$html$Html$text(
-													'✅ ' + ($elm$core$String$fromInt(model.completedSessions) + '개 완성'))
+													'🎯 ' + ($elm$core$String$fromInt(model.sessionTotalScore) + '점'))
 												])),
+											(model.lastTextScore > 0) ? A2(
+											$elm$html$Html$div,
+											_List_fromArray(
+												[
+													$elm$html$Html$Attributes$class('last-text-score-compact')
+												]),
+											_List_fromArray(
+												[
+													$elm$html$Html$text(
+													'직전: +' + ($elm$core$String$fromInt(model.lastTextScore) + '점'))
+												])) : $elm$html$Html$text(''),
 											A2(
 											$elm$html$Html$button,
 											_List_fromArray(
@@ -7301,12 +7407,61 @@ var $author$project$Main$viewSessionTimer = function (model) {
 									_List_fromArray(
 										[
 											A2(
+											$elm$html$Html$div,
+											_List_fromArray(
+												[
+													$elm$html$Html$Attributes$class('final-score')
+												]),
+											_List_fromArray(
+												[
+													A2(
+													$elm$html$Html$h2,
+													_List_Nil,
+													_List_fromArray(
+														[
+															$elm$html$Html$text('최종 점수')
+														])),
+													A2(
+													$elm$html$Html$div,
+													_List_fromArray(
+														[
+															$elm$html$Html$Attributes$class('score-display')
+														]),
+													_List_fromArray(
+														[
+															$elm$html$Html$text(
+															$elm$core$String$fromInt(model.sessionTotalScore) + '점')
+														])),
+													A2(
+													$elm$html$Html$div,
+													_List_fromArray(
+														[
+															$elm$html$Html$Attributes$class('concentration-score')
+														]),
+													_List_fromArray(
+														[
+															$elm$html$Html$text(
+															'집중력: ' + ($author$project$Main$calculateConcentrationScore(model) + '점/분'))
+														])),
+													A2(
+													$elm$html$Html$div,
+													_List_fromArray(
+														[
+															$elm$html$Html$Attributes$class('elapsed-time')
+														]),
+													_List_fromArray(
+														[
+															$elm$html$Html$text(
+															'소요시간: ' + $author$project$Main$calculateElapsedTime(model))
+														]))
+												])),
+											A2(
 											$elm$html$Html$p,
 											_List_Nil,
 											_List_fromArray(
 												[
 													$elm$html$Html$text(
-													$elm$core$String$fromInt(model.selectedSessionDuration) + ('분 동안 ' + ($elm$core$String$fromInt(model.completedSessions) + '개의 지문을 완성했습니다!')))
+													$elm$core$String$fromInt(model.selectedSessionDuration) + '분 세션이 완료되었습니다!')
 												])),
 											A2(
 											$elm$html$Html$div,
@@ -7348,8 +7503,6 @@ var $author$project$Main$viewSessionTimer = function (model) {
 var $author$project$Main$KeyPressed = function (a) {
 	return {$: 'KeyPressed', a: a};
 };
-var $author$project$Main$StartOver = {$: 'StartOver'};
-var $elm$core$Basics$round = _Basics_round;
 var $author$project$Main$calculateAccuracy = F2(
 	function (model, targetText) {
 		var totalChars = model.currentPosition;
@@ -7394,29 +7547,33 @@ var $author$project$Main$viewLives = F2(
 		return A2(
 			$elm$core$List$map,
 			function (index) {
-				return (_Utils_cmp(index, remainingLives) < 1) ? A2(
-					$elm$html$Html$span,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$class('life-heart full')
-						]),
-					_List_fromArray(
-						[
-							$elm$html$Html$text('❤️')
-						])) : A2(
-					$elm$html$Html$span,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$class('life-heart empty')
-						]),
-					_List_fromArray(
-						[
-							$elm$html$Html$text('🤍')
-						]));
+				if (_Utils_cmp(index, remainingLives) < 1) {
+					var heartClass = (remainingLives === 1) ? 'life-heart danger' : 'life-heart full';
+					return A2(
+						$elm$html$Html$span,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$class(heartClass)
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('❤️')
+							]));
+				} else {
+					return A2(
+						$elm$html$Html$span,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$class('life-heart empty')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('🤍')
+							]));
+				}
 			},
 			A2($elm$core$List$range, 1, maxLives));
 	});
-var $elm$core$String$fromFloat = _String_fromNumber;
 var $elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
 var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
 var $author$project$Main$viewSessionProgressBar = function (model) {
@@ -7424,7 +7581,14 @@ var $author$project$Main$viewSessionProgressBar = function (model) {
 	if (_v0.$ === 'SessionActive') {
 		var totalTime = model.selectedSessionDuration * 60;
 		var timeLeft = $author$project$Main$calculateSessionTimeLeft(model);
-		var remainingPercentage = (timeLeft / totalTime) * 100;
+		var remainingPercentage = function () {
+			var _v1 = model.sessionStartTime;
+			if (_v1.$ === 'Nothing') {
+				return 100.0;
+			} else {
+				return (timeLeft / totalTime) * 100;
+			}
+		}();
 		var progressStyle = A2(
 			$elm$html$Html$Attributes$style,
 			'width',
@@ -7499,6 +7663,11 @@ var $author$project$Main$viewTypingText = F3(
 	});
 var $author$project$Main$viewTypingPractice = F2(
 	function (model, meditation) {
+		var maxLives = A2($author$project$Main$calculateMaxLives, model, meditation.text);
+		var remainingLives = A2($elm$core$Basics$max, 0, maxLives - model.mistakes);
+		var isDangerState = remainingLives === 1;
+		var targetTextClass = isDangerState ? 'target-text danger' : 'target-text';
+		var typingAreaClass = isDangerState ? 'typing-area danger' : 'typing-area';
 		return A2(
 			$elm$html$Html$div,
 			_List_fromArray(
@@ -7511,7 +7680,7 @@ var $author$project$Main$viewTypingPractice = F2(
 					$elm$html$Html$div,
 					_List_fromArray(
 						[
-							$elm$html$Html$Attributes$class('typing-area')
+							$elm$html$Html$Attributes$class(typingAreaClass)
 						]),
 					_List_fromArray(
 						[
@@ -7520,7 +7689,7 @@ var $author$project$Main$viewTypingPractice = F2(
 							$elm$html$Html$div,
 							_List_fromArray(
 								[
-									$elm$html$Html$Attributes$class('target-text'),
+									$elm$html$Html$Attributes$class(targetTextClass),
 									$elm$html$Html$Attributes$tabindex(0),
 									$elm$html$Html$Attributes$id('typing-area'),
 									A2(
@@ -7667,38 +7836,8 @@ var $author$project$Main$viewTypingPractice = F2(
 											'정확도: ' + ($elm$core$String$fromInt(
 												A2($author$project$Main$calculateAccuracy, model, meditation.text)) + '%'))
 										]))
-								])),
-							A2(
-							$elm$html$Html$button,
-							_List_fromArray(
-								[
-									$elm$html$Html$Events$onClick($author$project$Main$StartOver),
-									$elm$html$Html$Attributes$class('btn-primary')
-								]),
-							_List_fromArray(
-								[
-									$elm$html$Html$text('새로운 구절로 시작')
 								]))
-						])) : A2(
-					$elm$html$Html$div,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$class('controls')
-						]),
-					_List_fromArray(
-						[
-							A2(
-							$elm$html$Html$button,
-							_List_fromArray(
-								[
-									$elm$html$Html$Events$onClick($author$project$Main$StartOver),
-									$elm$html$Html$Attributes$class('btn-secondary')
-								]),
-							_List_fromArray(
-								[
-									$elm$html$Html$text('다시 시작')
-								]))
-						]))
+						])) : $elm$html$Html$text('')
 				]));
 	});
 var $author$project$Main$view = function (model) {
@@ -7767,10 +7906,30 @@ var $author$project$Main$view = function (model) {
 							_List_Nil,
 							_List_fromArray(
 								[
+									$author$project$Main$viewSessionTimer(model),
+									A2(
+									$elm$html$Html$div,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$class('grace-period-message')
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text('⏰ 세션 시간이 종료되었습니다. 남은 기회동안 계속 입력해주세요!')
+										])),
 									function () {
 									var _v2 = model.currentMeditation;
 									if (_v2.$ === 'Nothing') {
-										return $author$project$Main$viewSessionTimer(model);
+										return A2(
+											$elm$html$Html$div,
+											_List_fromArray(
+												[
+													$elm$html$Html$Attributes$class('loading')
+												]),
+											_List_fromArray(
+												[
+													$elm$html$Html$text('명상록을 불러오는 중...')
+												]));
 									} else {
 										var meditation = _v2.a;
 										return A2($author$project$Main$viewTypingPractice, model, meditation);

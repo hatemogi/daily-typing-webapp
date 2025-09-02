@@ -322,7 +322,7 @@ update msg model =
                                         model.sessionEndTime
                                 
                                 shouldLoadNextText = 
-                                    (model.sessionState == SessionActive) && (newRetryCount > 3)
+                                    (model.sessionState == SessionActive) && (newRetryCount > 1)
                                 
                                 updatedModel = 
                                     { model
@@ -547,13 +547,8 @@ calculateTextScore text mistakes retryCount =
                 2 -> 1.25   -- 2 mistakes: 25% bonus
                 _ -> 1.0    -- 3+ mistakes: no bonus
         
-        -- Retry penalty multiplier
-        retryMultiplier =
-            case retryCount of
-                0 -> 1.0    -- No retries
-                1 -> 0.8    -- 1 retry: -20%
-                2 -> 0.6    -- 2 retries: -40%
-                _ -> 0.4    -- 3+ retries: -60%
+        -- No retry penalty - retry attempts don't affect score
+        retryMultiplier = 1.0
         
         finalScore = 
             toFloat baseScore 
