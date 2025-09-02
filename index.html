@@ -13,7 +13,7 @@
 
         body {
             font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0F7BA6 0%, #1A4173 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -23,14 +23,14 @@
             margin: 0 auto;
             background: white;
             border-radius: 12px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 20px 40px rgba(26, 65, 115, 0.15);
             padding: 40px;
             min-height: 80vh;
         }
 
         .title {
             text-align: center;
-            color: #333;
+            color: #1A4173;
             font-size: 2.5em;
             margin-bottom: 10px;
             font-weight: 300;
@@ -38,7 +38,7 @@
 
         .subtitle {
             text-align: center;
-            color: #666;
+            color: #0F7BA6;
             font-size: 1.2em;
             margin-bottom: 40px;
             font-weight: 300;
@@ -47,7 +47,7 @@
         .loading {
             text-align: center;
             font-size: 1.2em;
-            color: #666;
+            color: #0F7BA6;
             margin-top: 100px;
         }
 
@@ -59,18 +59,18 @@
             text-align: center;
             margin-bottom: 30px;
             padding: 20px;
-            background: #f8f9fa;
+            background: #D7D7D9;
             border-radius: 8px;
         }
 
         .meditation-info h3 {
-            color: #495057;
+            color: #1A4173;
             font-size: 1.4em;
             margin-bottom: 5px;
         }
 
         .source {
-            color: #6c757d;
+            color: #0F7BA6;
             font-style: italic;
             font-size: 0.9em;
         }
@@ -80,8 +80,8 @@
         }
 
         .target-text {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
+            background: #D7D7D9;
+            border: 2px solid #BFA07A;
             border-radius: 8px;
             padding: 20px;
             margin-bottom: 20px;
@@ -93,8 +93,8 @@
         }
 
         .target-text:focus {
-            border-color: #007bff;
-            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+            border-color: #0F7BA6;
+            box-shadow: 0 0 0 3px rgba(15, 123, 166, 0.15);
         }
 
         .typing-area.danger {
@@ -102,22 +102,22 @@
         }
 
         .target-text.danger {
-            background: #fff5f5;
-            border-color: #fecaca;
-            box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.1);
+            background: #D9B4B4;
+            border-color: #D9B4B4;
+            box-shadow: 0 0 0 2px rgba(217, 180, 180, 0.3);
         }
 
         .target-text.danger:focus {
-            border-color: #dc3545;
-            box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
+            border-color: #D9B4B4;
+            box-shadow: 0 0 0 3px rgba(217, 180, 180, 0.25);
         }
 
         @keyframes typing-danger-glow {
             0%, 100% { 
-                filter: drop-shadow(0 0 0px rgba(220, 53, 69, 0));
+                filter: drop-shadow(0 0 0px rgba(217, 180, 180, 0));
             }
             50% { 
-                filter: drop-shadow(0 0 8px rgba(220, 53, 69, 0.3));
+                filter: drop-shadow(0 0 8px rgba(217, 180, 180, 0.5));
             }
         }
 
@@ -126,17 +126,17 @@
         }
 
         .char-correct {
-            background: #d4edda;
-            color: #155724;
+            background: #BFA07A;
+            color: #1A4173;
         }
 
         .char-corrected {
-            background: #fff3cd;
-            color: #856404;
+            background: #D9B4B4;
+            color: #1A4173;
         }
 
         .char-current {
-            background: #007bff;
+            background: #0F7BA6;
             color: white;
             animation: blink 1s infinite;
         }
@@ -147,7 +147,7 @@
         }
 
         .char-remaining {
-            color: #6c757d;
+            color: #1A4173;
         }
 
 
@@ -155,20 +155,20 @@
             display: flex;
             justify-content: space-between;
             padding: 15px;
-            background: #f8f9fa;
+            background: #D7D7D9;
             border-radius: 8px;
             margin-bottom: 20px;
         }
 
         .progress, .mistakes {
             font-weight: 500;
-            color: #495057;
+            color: #1A4173;
         }
 
         .mistake-warning {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+            background: #D9B4B4;
+            color: #1A4173;
+            border: 2px solid #D9B4B4;
             border-radius: 4px;
             padding: 8px 12px;
             margin-top: 8px;
@@ -188,7 +188,7 @@
             justify-content: space-around;
             margin: 20px 0;
             padding: 15px;
-            background: rgba(255,255,255,0.1);
+            background: rgba(215, 215, 217, 0.3);
             border-radius: 8px;
         }
 
@@ -196,6 +196,7 @@
             text-align: center;
             font-size: 1.1em;
             font-weight: 600;
+            color: #1A4173;
         }
 
         .final-score {
@@ -206,15 +207,15 @@
         .final-score h2 {
             margin: 0 0 15px 0;
             font-size: 1.4em;
-            color: #495057;
+            color: #1A4173;
             font-weight: 500;
         }
 
         .score-display {
             font-size: 3em;
             font-weight: 700;
-            color: #007bff;
-            text-shadow: 0 2px 4px rgba(0,123,255,0.3);
+            color: #0F7BA6;
+            text-shadow: 0 2px 4px rgba(15, 123, 166, 0.3);
             margin-bottom: 15px;
             animation: score-celebration 1.5s ease-out;
         }
@@ -222,7 +223,7 @@
         .concentration-score {
             font-size: 1.2em;
             font-weight: 600;
-            color: #28a745;
+            color: #BFA07A;
             margin-bottom: 10px;
             animation: score-celebration 1.5s ease-out 0.3s both;
         }
@@ -230,7 +231,7 @@
         .elapsed-time {
             font-size: 1.1em;
             font-weight: 500;
-            color: #495057;
+            color: #1A4173;
             margin-bottom: 20px;
             animation: score-celebration 1.5s ease-out 0.6s both;
         }
@@ -258,7 +259,7 @@
         .completion {
             text-align: center;
             padding: 30px;
-            background: linear-gradient(135deg, #28a745, #20c997);
+            background: linear-gradient(135deg, #0F7BA6, #BFA07A);
             color: white;
             border-radius: 8px;
             margin-bottom: 20px;
@@ -289,22 +290,22 @@
         }
 
         .btn-primary {
-            background: #007bff;
+            background: #0F7BA6;
             color: white;
         }
 
         .btn-primary:hover {
-            background: #0056b3;
+            background: #1A4173;
             transform: translateY(-2px);
         }
 
         .btn-secondary {
-            background: #6c757d;
+            background: #BFA07A;
             color: white;
         }
 
         .btn-secondary:hover {
-            background: #545b62;
+            background: #1A4173;
             transform: translateY(-2px);
         }
 
@@ -334,9 +335,9 @@
         }
 
         .life-heart.danger {
-            color: #dc3545;
+            color: #D9B4B4;
             animation: danger-pulse 0.8s ease-in-out infinite;
-            filter: drop-shadow(0 0 8px rgba(220, 53, 69, 0.6));
+            filter: drop-shadow(0 0 8px rgba(217, 180, 180, 0.8));
         }
 
         @keyframes heartbeat {
@@ -347,11 +348,11 @@
         @keyframes danger-pulse {
             0%, 100% { 
                 transform: scale(1);
-                filter: drop-shadow(0 0 8px rgba(220, 53, 69, 0.6));
+                filter: drop-shadow(0 0 8px rgba(217, 180, 180, 0.8));
             }
             50% { 
                 transform: scale(1.15);
-                filter: drop-shadow(0 0 12px rgba(220, 53, 69, 0.9));
+                filter: drop-shadow(0 0 12px rgba(217, 180, 180, 1));
             }
         }
 
@@ -361,22 +362,22 @@
             align-items: center;
             margin-top: 20px;
             padding: 15px;
-            background: rgba(0,0,0,0.02);
+            background: rgba(215, 215, 217, 0.3);
             border-radius: 8px;
-            border-top: 3px solid #007bff;
+            border-top: 3px solid #0F7BA6;
         }
 
         .lives-label {
             font-size: 0.9em;
-            color: #666;
+            color: #1A4173;
             margin-bottom: 8px;
             font-weight: 500;
         }
 
         .lives-warning {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+            background: #D9B4B4;
+            color: #1A4173;
+            border: 2px solid #D9B4B4;
             border-radius: 4px;
             padding: 8px 12px;
             margin-top: 10px;
@@ -388,9 +389,9 @@
         }
 
         .grace-period-message {
-            background: linear-gradient(135deg, #ffeaa7, #fdcb6e);
-            color: #2d3436;
-            border: 2px solid #fdcb6e;
+            background: linear-gradient(135deg, #BFA07A, #D9B4B4);
+            color: #1A4173;
+            border: 2px solid #BFA07A;
             border-radius: 8px;
             padding: 15px 20px;
             margin: 20px 0;
@@ -398,7 +399,7 @@
             font-weight: 600;
             text-align: center;
             animation: pulse 2s ease-in-out infinite;
-            box-shadow: 0 4px 15px rgba(253, 203, 110, 0.3);
+            box-shadow: 0 4px 15px rgba(191, 160, 122, 0.3);
         }
 
         @keyframes pulse {
@@ -425,13 +426,13 @@
         }
 
         .session-timer {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #0F7BA6, #1A4173);
             color: white;
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 30px;
             text-align: center;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 4px 15px rgba(15, 123, 166, 0.3);
         }
 
         .duration-selector {
@@ -475,13 +476,13 @@
 
         .btn-duration.active {
             background: white;
-            color: #667eea;
+            color: #0F7BA6;
             border-color: white;
             font-weight: 600;
         }
 
         .btn-duration.active:hover {
-            background: #f8f8f8;
+            background: #D7D7D9;
         }
 
         .session-start h3, .session-active h3, .session-completed h3 {
@@ -521,11 +522,11 @@
 
         .btn-session-start {
             background: white;
-            color: #667eea;
+            color: #0F7BA6;
         }
 
         .btn-session-start:hover {
-            background: #f8f8f8;
+            background: #D7D7D9;
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(0,0,0,0.2);
         }
@@ -571,13 +572,13 @@
 
         .session-progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #667eea, #764ba2);
+            background: linear-gradient(90deg, #0F7BA6, #1A4173);
             transition: width 0.3s ease;
             border-radius: 3px;
         }
 
         .session-active-compact {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #0F7BA6, #1A4173);
             color: white;
             border-radius: 8px;
             padding: 15px 20px;
@@ -601,8 +602,8 @@
         .last-text-score-compact {
             font-size: 0.9em;
             font-weight: 600;
-            color: #28a745;
-            background: rgba(40, 167, 69, 0.1);
+            color: #0F7BA6;
+            background: rgba(15, 123, 166, 0.1);
             padding: 4px 8px;
             border-radius: 12px;
             animation: score-highlight 2s ease-out;
@@ -610,11 +611,11 @@
 
         @keyframes score-highlight {
             0% { 
-                background: rgba(40, 167, 69, 0.3);
+                background: rgba(15, 123, 166, 0.3);
                 transform: scale(1.05);
             }
             100% { 
-                background: rgba(40, 167, 69, 0.1);
+                background: rgba(15, 123, 166, 0.1);
                 transform: scale(1);
             }
         }
@@ -626,14 +627,14 @@
             border-radius: 15px;
             cursor: pointer;
             font-weight: 600;
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(191, 160, 122, 0.2);
+            color: #1A4173;
+            border: 1px solid #BFA07A;
             transition: all 0.3s ease;
         }
 
         .btn-session-stop-compact:hover {
-            background: rgba(255,255,255,0.3);
+            background: rgba(191, 160, 122, 0.4);
             transform: translateY(-1px);
         }
 
